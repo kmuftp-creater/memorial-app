@@ -314,24 +314,33 @@ body{
 }
 .tower-drop{animation:towerDrop 1.3s ease-in forwards}
 
+@keyframes tabletCrush{
+  0%{transform:scaleY(1) scaleX(1) translateY(0);opacity:1}
+  25%{transform:scaleY(0.5) scaleX(1.3) translateY(15px);opacity:1}
+  50%{transform:scaleY(0.25) scaleX(1.6) translateY(28px);opacity:0.8}
+  75%{transform:scaleY(0.1) scaleX(2.0) translateY(36px);opacity:0.5}
+  100%{transform:scaleY(0.03) scaleX(2.4) translateY(40px);opacity:0.15}
+}
+.tablet-crush{animation:tabletCrush 1.2s ease-in forwards;animation-delay:1.4s;transform-origin:bottom center}
+
 @keyframes screenShake{0%,100%{transform:translateX(0)}15%{transform:translateX(-10px) rotate(-0.5deg)}30%{transform:translateX(10px) rotate(0.5deg)}45%{transform:translateX(-7px)}60%{transform:translateX(7px)}75%{transform:translateX(-3px)}90%{transform:translateX(3px)}}
 .screen-shake{animation:screenShake 0.6s ease-out}
 
-@keyframes catWalkIn{0%{transform:translateX(220px)}100%{transform:translateX(0)}}
-.cat-walk{animation:catWalkIn 1s ease-out forwards}
+@keyframes catWalkIn{0%{transform:translateX(350px)}100%{transform:translateX(0)}}
+.cat-walk{animation:catWalkIn 1.2s ease-out forwards}
 
-@keyframes tabletTopple{0%{transform:rotate(0) translateY(0)}30%{transform:rotate(8deg) translateY(0)}60%{transform:rotate(35deg) translateY(5px) translateX(15px)}100%{transform:rotate(95deg) translateY(30px) translateX(45px);opacity:0.1}}
-.tablet-topple{animation:tabletTopple 1s ease-in forwards;animation-delay:1.1s}
+@keyframes tabletTopple{0%{transform:rotate(0) translateY(0)}20%{transform:rotate(12deg) translateY(0)}50%{transform:rotate(45deg) translateY(5px) translateX(15px)}100%{transform:rotate(95deg) translateY(30px) translateX(45px);opacity:0.1}}
+.tablet-topple{animation:tabletTopple 0.8s ease-in forwards}
 
 /* Cat kick leg animation */
 @keyframes catKickLeg{
   0%{transform:rotate(0deg)}
-  40%{transform:rotate(0deg)}
-  55%{transform:rotate(-40deg)}
-  70%{transform:rotate(5deg)}
+  30%{transform:rotate(0deg)}
+  50%{transform:rotate(-45deg)}
+  65%{transform:rotate(5deg)}
   100%{transform:rotate(-5deg)}
 }
-.cat-kick-leg{animation:catKickLeg 0.8s ease-out forwards;animation-delay:0.9s;transform-origin:54px 138px}
+.cat-kick-leg{animation:catKickLeg 0.6s ease-out forwards;transform-origin:54px 138px}
 
 /* Cat tail wag */
 @keyframes catTailWag{
@@ -481,15 +490,53 @@ function TabletCard({tablet, size="md", onClick, style}) {
 function CatPawIncense({count, onDone}) {
   const [phase, setPhase] = useState("in");
   useEffect(() => {
-    const t1 = setTimeout(() => setPhase("out"), 1200);
-    const t2 = setTimeout(() => onDone?.(), 1800);
-    return () => { clearTimeout(t1); clearTimeout(t2) };
+    const t1 = setTimeout(() => setPhase("bow"), 400);
+    const t2 = setTimeout(() => setPhase("bow2"), 800);
+    const t3 = setTimeout(() => setPhase("bow3"), 1200);
+    const t4 = setTimeout(() => setPhase("out"), 1600);
+    const t5 = setTimeout(() => onDone?.(), 2100);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); clearTimeout(t5) };
   }, [onDone]);
+  const bowAngle = phase==="bow"||phase==="bow3" ? -20 : phase==="bow2" ? 0 : 0;
+  const isOut = phase==="out";
   return (
     <div style={{display:"flex",flexDirection:"column",alignItems:"center"}}>
-      <div className={`cat-paw-anim ${phase}`} style={{fontSize:64,lineHeight:1,filter:"drop-shadow(0 0 10px rgba(255,215,0,0.4))"}}>🐾</div>
-      <div className="incense-holder" style={{marginTop:6}}>
-        {Array.from({length:count}).map((_,i) => <div key={i} className="incense-stick"/>)}
+      <div className={`cat-paw-anim ${isOut?"out":""}`} style={{filter:"drop-shadow(0 0 10px rgba(255,215,0,0.4))",transition:"transform 0.3s ease",transform:`rotate(${bowAngle}deg)`}}>
+        <svg width="90" height="120" viewBox="0 0 90 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+          {/* 香：從手掌中間伸出 */}
+          {Array.from({length:Math.min(count,3)}).map((_,i) => {
+            const cx = 45 + (i-1) * 6;
+            return (
+              <g key={i}>
+                <line x1={cx} y1="8" x2={cx} y2="55" stroke="#CD853F" strokeWidth="2.5" strokeLinecap="round"/>
+                <circle cx={cx} cy="6" r="4" fill="#FF4500" opacity="0.9">
+                  <animate attributeName="r" dur="1s" values="3;5;3" repeatCount="indefinite"/>
+                  <animate attributeName="opacity" dur="1s" values="0.7;1;0.7" repeatCount="indefinite"/>
+                </circle>
+                <circle cx={cx} cy="3" r="3" fill="#FFA500" opacity="0.4">
+                  <animate attributeName="r" dur="1.2s" values="2;4;2" repeatCount="indefinite"/>
+                  <animate attributeName="cy" dur="1.2s" values="3;0;3" repeatCount="indefinite"/>
+                </circle>
+              </g>
+            );
+          })}
+          {/* 手掌 */}
+          <ellipse cx="45" cy="78" rx="24" ry="18" fill="#C4A882"/>
+          <ellipse cx="45" cy="80" rx="20" ry="14" fill="#FFB6C1"/>
+          {/* 大肉球 */}
+          <ellipse cx="45" cy="84" rx="10" ry="7" fill="#FF8FA0"/>
+          {/* 小肉球 */}
+          <circle cx="33" cy="74" r="5" fill="#FF8FA0"/>
+          <circle cx="45" cy="70" r="5" fill="#FF8FA0"/>
+          <circle cx="57" cy="74" r="5" fill="#FF8FA0"/>
+          {/* 手指 */}
+          <ellipse cx="30" cy="65" rx="7" ry="10" fill="#C4A882" transform="rotate(-15,30,65)"/>
+          <ellipse cx="45" cy="60" rx="7" ry="11" fill="#C4A882"/>
+          <ellipse cx="60" cy="65" rx="7" ry="10" fill="#C4A882" transform="rotate(15,60,65)"/>
+          {/* 手腕/手臂 */}
+          <rect x="33" y="90" width="24" height="30" rx="10" fill="#C4A882"/>
+          <rect x="36" y="90" width="18" height="25" rx="8" fill="#E8D5BC" opacity="0.5"/>
+        </svg>
       </div>
     </div>
   );
@@ -522,12 +569,13 @@ function HallView({tablets, onSelectTablet}) {
 /* ================================================================
    Enlarged Tablet Overlay
    ================================================================ */
-function EnlargedTabletView({tablet, onClose, onAddIncense}) {
+function EnlargedTabletView({tablet, onClose, onAddIncense, onDelete}) {
   const [count, setCount] = useState(3);
   const [animating, setAnimating] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const handleBurn = () => {
     setAnimating(true);
-    setTimeout(() => { onAddIncense(tablet.id, count); setAnimating(false) }, 1800);
+    setTimeout(() => { onAddIncense(tablet.id, count); setAnimating(false) }, 2100);
   };
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20,backdropFilter:"blur(8px)"}} onClick={onClose}>
@@ -547,6 +595,20 @@ function EnlargedTabletView({tablet, onClose, onAddIncense}) {
         <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
           <button className="gbtn gbtn-primary gbtn-lg mobile-full" onClick={handleBurn} disabled={animating}>🐾 上香</button>
           <button className="gbtn mobile-full" onClick={onClose}>關閉</button>
+        </div>
+        <div style={{marginTop:20,paddingTop:16,borderTop:`1px solid ${T.border}`}}>
+          {!confirmDelete ? (
+            <button className="gbtn gbtn-sm" style={{color:T.red,opacity:0.6,fontSize:12}} onClick={()=>setConfirmDelete(true)}>移除此牌位</button>
+          ) : (
+            <div style={{background:"rgba(255,68,68,0.1)",border:`1px solid rgba(255,68,68,0.3)`,borderRadius:12,padding:16}}>
+              <p style={{color:T.red,fontWeight:700,fontSize:14,marginBottom:4}}>確定要移除「{tablet.name}」？</p>
+              <p style={{color:T.textDim,fontSize:12,marginBottom:14}}>此操作無法復原，香火紀錄將一併清除</p>
+              <div style={{display:"flex",gap:10,justifyContent:"center"}}>
+                <button className="gbtn gbtn-danger" onClick={()=>onDelete(tablet.id)}>確定移除</button>
+                <button className="gbtn gbtn-sm" onClick={()=>setConfirmDelete(false)}>取消</button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -673,11 +735,19 @@ function PunishmentView({tablets}) {
   const [text, setText] = useState("");
   const [animating, setAnimating] = useState(false);
   const [phase, setPhase] = useState("idle");
+  const [catPhase, setCatPhase] = useState("idle");
   const needsTarget = type==="lantern"||type==="cliff"||type==="tower"||type==="catrevenge";
   const handleExecute = () => {
     setAnimating(true); setPhase("play");
-    const dur = type==="catrevenge" ? 4500 : 3800;
-    setTimeout(() => { setPhase("done"); setTimeout(() => { setAnimating(false); setPhase("idle"); setTarget(null); setText("") }, 1500) }, dur);
+    if (type === "catrevenge") {
+      setCatPhase("walk");
+      setTimeout(() => setCatPhase("kick"), 1200);
+      setTimeout(() => setCatPhase("topple"), 1550);
+      setTimeout(() => { setPhase("done"); setTimeout(() => { setAnimating(false); setPhase("idle"); setCatPhase("idle"); setTarget(null); setText("") }, 1500) }, 4200);
+    } else {
+      const dur = type==="tower" ? 5500 : 3800;
+      setTimeout(() => { setPhase("done"); setTimeout(() => { setAnimating(false); setPhase("idle"); setTarget(null); setText("") }, 1500) }, dur);
+    }
   };
   const canExecute = type && (needsTarget ? target : true);
   return (
@@ -735,20 +805,20 @@ function PunishmentView({tablets}) {
           )}
           {/* === 雷峰塔 === */}
           {type==="tower" && target && (
-            <div style={{textAlign:"center"}}>
-              <div className="tower-drop" style={{fontSize:90,marginBottom:-12,filter:"drop-shadow(0 0 20px rgba(255,215,0,0.4))"}}>🏯</div>
-              <div style={{background:"linear-gradient(180deg,#5C3A1E,#8B5A2B)",border:`2px solid ${T.gold}`,borderRadius:4,color:T.goldLight,padding:"14px 10px",fontSize:16,fontWeight:900,writingMode:"vertical-rl",display:"inline-block"}}>{target.name}</div>
+            <div style={{textAlign:"center",position:"relative"}}>
+              <div className="tower-drop" style={{fontSize:90,marginBottom:-12,filter:"drop-shadow(0 0 20px rgba(255,215,0,0.4))",position:"relative",zIndex:2}}>🏯</div>
+              <div className={phase==="play"?"tablet-crush":""} style={{background:"linear-gradient(180deg,#5C3A1E,#8B5A2B)",border:`2px solid ${T.gold}`,borderRadius:4,color:T.goldLight,padding:"14px 10px",fontSize:16,fontWeight:900,writingMode:"vertical-rl",display:"inline-block",transformOrigin:"bottom center"}}>{target.name}</div>
               <p style={{marginTop:14,fontWeight:900,color:T.red,fontSize:15,textShadow:`0 0 10px rgba(255,68,68,0.5)`}}>鎮壓妖魔鬼怪學員</p>
             </div>
           )}
           {/* === 貓的報復：SVG 布偶貓踢倒牌位 === */}
           {type==="catrevenge" && target && (
-            <div style={{width:"100%",height:"100%",position:"relative",minHeight:340}}>
-              {/* 牌位 */}
-              <div className={phase==="play"?"tablet-topple":""} style={{position:"absolute",bottom:40,left:"30%",background:"linear-gradient(180deg,#5C3A1E,#8B5A2B)",border:`2px solid ${T.gold}`,borderRadius:4,color:T.goldLight,padding:"18px 10px",fontSize:18,fontWeight:900,writingMode:"vertical-rl",transformOrigin:"bottom right",boxShadow:`0 0 12px rgba(255,215,0,0.2)`}}>{target.name}</div>
-              {/* SVG 布偶貓 */}
-              <div className="cat-walk" style={{position:"absolute",bottom:20,right:"12%",filter:"drop-shadow(0 0 12px rgba(139,92,246,0.3))"}}>
-                <svg width="160" height="180" viewBox="0 0 160 180" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <div style={{width:"100%",height:"100%",position:"relative",minHeight:340,overflow:"hidden"}}>
+              {/* 牌位：只有 catPhase=topple 才加倒下動畫 */}
+              <div className={catPhase==="topple"?"tablet-topple":""} style={{position:"absolute",bottom:40,left:"28%",background:"linear-gradient(180deg,#5C3A1E,#8B5A2B)",border:`2px solid ${T.gold}`,borderRadius:4,color:T.goldLight,padding:"18px 10px",fontSize:18,fontWeight:900,writingMode:"vertical-rl",transformOrigin:"bottom right",boxShadow:`0 0 12px rgba(255,215,0,0.2)`,zIndex:1}}>{target.name}</div>
+              {/* SVG 布偶貓：最終位置緊貼牌位右側，從右側畫面外走入 */}
+              <div className={catPhase!=="idle"?"cat-walk":""} style={{position:"absolute",bottom:20,left:"32%",filter:"drop-shadow(0 0 12px rgba(139,92,246,0.3))",zIndex:2}}>
+                <svg width="130" height="150" viewBox="0 0 160 180" fill="none" xmlns="http://www.w3.org/2000/svg">
                   {/* 尾巴 */}
                   <path className="cat-tail-wag" d="M130,130 Q155,100 148,70 Q142,50 150,35" stroke="#C4A882" strokeWidth="8" strokeLinecap="round" fill="none">
                     <animate attributeName="d" dur="0.8s" repeatCount="indefinite" values="M130,130 Q155,100 148,70 Q142,50 150,35;M130,130 Q160,95 152,65 Q148,40 158,28;M130,130 Q155,100 148,70 Q142,50 150,35"/>
@@ -765,8 +835,8 @@ function PunishmentView({tablets}) {
                   {/* 後腳 */}
                   <ellipse cx="120" cy="150" rx="10" ry="7" fill="#C4A882"/>
                   <ellipse cx="120" cy="155" rx="8" ry="4" fill="#F0D0B0"/>
-                  {/* 前腳（踢擊動作） */}
-                  <g className="cat-kick-leg">
+                  {/* 前腳（踢擊動作）：只在 kick/topple 階段播放踢腳動畫 */}
+                  <g className={catPhase==="kick"||catPhase==="topple"?"cat-kick-leg":""}>
                     <rect x="48" y="138" width="12" height="25" rx="6" fill="#C4A882" transform="rotate(-30,54,138)"/>
                     {/* 腳掌 - 粉色肉球 */}
                     <ellipse cx="42" cy="158" rx="9" ry="7" fill="#C4A882"/>
@@ -867,6 +937,7 @@ function ArcheryGameView({tablets}) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [scoreList, setScoreList] = useState([]);
+  const [level, setLevel] = useState(1);
   const canvasRef = useRef(null);
   const gameRef = useRef(null);
 
@@ -890,13 +961,18 @@ function ArcheryGameView({tablets}) {
 
   const GAME_TIME = 30;
 
-  const startGame = (name) => {
+  const [totalScore, setTotalScore] = useState(0);
+
+  const startGame = (name, lv) => {
+    const useLv = lv || 1;
+    setLevel(useLv);
     setSelectedName(name);
     setGamePhase("playing");
     setDisplayScore(0);
     setTimeLeft(GAME_TIME);
     setSaved(false);
     setPlayerName("");
+    if (useLv === 1) setTotalScore(0);
     gameRef.current = {
       tablets: [],
       arrows: [],
@@ -910,6 +986,7 @@ function ArcheryGameView({tablets}) {
       lastClickTime: 0,
       startTime: Date.now(),
       timeLeft: GAME_TIME,
+      level: useLv,
     };
   };
 
@@ -1001,7 +1078,7 @@ function ArcheryGameView({tablets}) {
       if (g.timeLeft <= 0) {
         g.running = false;
         setTimeLeft(0);
-        setHighScore(prev => Math.max(prev, g.score));
+        setTotalScore(prev => prev + g.score);
         setGamePhase("gameover");
         return;
       }
@@ -1013,10 +1090,17 @@ function ArcheryGameView({tablets}) {
 
       g.spawnTimer++;
       if (g.spawnTimer >= spawnInterval) {
+        const angles = [0, -30, -15, 15, 30, 90];
+        const ang = g.level === 2 ? angles[Math.floor(Math.random() * angles.length)] : 0;
+        const isHoriz = Math.abs(ang) === 90;
+        const tw = isHoriz ? TH : TW;
         g.tablets.push({
-          x: 10 + Math.random() * (GAME_W - TW - 20),
+          x: 10 + Math.random() * (GAME_W - tw - 20),
           y: -TH,
           speed: speedMin + Math.random() * (speedMax - speedMin),
+          angle: ang,
+          hp: g.level === 2 ? 2 : 1,
+          maxHp: g.level === 2 ? 2 : 1,
         });
         g.spawnTimer = 0;
       }
@@ -1031,16 +1115,27 @@ function ArcheryGameView({tablets}) {
       const survivingArrows = [];
       for (const a of g.arrows) {
         let hitSomething = false;
-        g.tablets = g.tablets.filter(t => {
-          if (!hitSomething && a.x > t.x - 4 && a.x < t.x + TW + 4 && a.y > t.y && a.y < t.y + TH) {
+        for (let ti = 0; ti < g.tablets.length; ti++) {
+          const t = g.tablets[ti];
+          const isHoriz = Math.abs(t.angle || 0) === 90;
+          const hitW = isHoriz ? TH : TW;
+          const hitH = isHoriz ? TW : TH;
+          const cx = t.x + hitW / 2;
+          const cy = t.y + hitH / 2;
+          if (!hitSomething && a.x > t.x - 4 && a.x < t.x + hitW + 4 && a.y > t.y && a.y < t.y + hitH) {
             hitSomething = true;
-            g.explosions.push({ x: t.x + TW / 2, y: t.y + TH / 2, frame: 0 });
-            g.score += 10;
+            t.hp--;
+            if (t.hp <= 0) {
+              g.explosions.push({ x: cx, y: cy, frame: 0 });
+              g.score += g.level === 2 ? 20 : 10;
+              g.tablets.splice(ti, 1);
+            } else {
+              g.score += 5;
+              g.explosions.push({ x: a.x, y: a.y, frame: 8, small: true });
+            }
             setDisplayScore(g.score);
-            return false;
           }
-          return true;
-        });
+        }
         if (!hitSomething) survivingArrows.push(a);
       }
       g.arrows = survivingArrows;
@@ -1075,32 +1170,52 @@ function ArcheryGameView({tablets}) {
 
       for (const t of g.tablets) {
         ctx.save();
+        const ang = (t.angle || 0) * Math.PI / 180;
+        const isHoriz = Math.abs(t.angle || 0) === 90;
+        const drawW = isHoriz ? TH : TW;
+        const drawH = isHoriz ? TW : TH;
+        const cx = t.x + drawW / 2;
+        const cy = t.y + drawH / 2;
+        ctx.translate(cx, cy);
+        ctx.rotate(ang);
         ctx.shadowColor = "rgba(255,215,0,0.2)";
         ctx.shadowBlur = 8;
-        const tg = ctx.createLinearGradient(t.x, t.y, t.x, t.y + TH);
+        const tg = ctx.createLinearGradient(0, -TH/2, 0, TH/2);
         tg.addColorStop(0, "#3D2415");
         tg.addColorStop(0.3, "#5C3A1E");
         tg.addColorStop(0.5, "#8B5A2B");
         tg.addColorStop(0.7, "#5C3A1E");
         tg.addColorStop(1, "#3D2415");
         ctx.fillStyle = tg;
-        ctx.fillRect(t.x, t.y, TW, TH);
+        ctx.fillRect(-TW/2, -TH/2, TW, TH);
         ctx.shadowBlur = 0;
         ctx.strokeStyle = "#FFD700";
         ctx.lineWidth = 2;
-        ctx.strokeRect(t.x, t.y, TW, TH);
+        ctx.strokeRect(-TW/2, -TH/2, TW, TH);
         ctx.strokeStyle = "rgba(255,215,0,0.25)";
         ctx.lineWidth = 1;
-        ctx.strokeRect(t.x + 3, t.y + 3, TW - 6, TH - 6);
+        ctx.strokeRect(-TW/2+3, -TH/2+3, TW-6, TH-6);
         ctx.fillStyle = "#FFF3B0";
         ctx.font = "bold 11px 'Noto Sans TC',sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
         const chars = (g.name || "").split("");
-        const startY = t.y + Math.max(4, (TH - chars.length * 14) / 2);
+        const startY = -TH/2 + Math.max(4, (TH - chars.length * 14) / 2);
         chars.forEach((ch, i) => {
-          ctx.fillText(ch, t.x + TW / 2, startY + i * 14);
+          ctx.fillText(ch, 0, startY + i * 14);
         });
+        if (t.maxHp > 1 && t.hp === 1) {
+          ctx.strokeStyle = "#FF4444";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(-TW/2 + 4, -TH/2 + 4);
+          ctx.lineTo(TW/2 - 4, TH/2 - 4);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(TW/2 - 4, -TH/2 + 4);
+          ctx.lineTo(-TW/2 + 4, TH/2 - 4);
+          ctx.stroke();
+        }
         ctx.restore();
       }
 
@@ -1124,6 +1239,7 @@ function ArcheryGameView({tablets}) {
       }
 
       for (const e of g.explosions) {
+        if (e.small) { const sp = e.frame / 16; const sa = Math.max(0,1-sp); ctx.save(); ctx.globalCompositeOperation="lighter"; ctx.beginPath(); ctx.arc(e.x,e.y,4+sp*15,0,Math.PI*2); ctx.fillStyle=`rgba(255,200,0,${sa*0.6})`; ctx.fill(); ctx.restore(); continue; }
         const p = e.frame / 24;
         const r = 6 + p * 40;
         const a = Math.max(0, 1 - p);
@@ -1214,7 +1330,7 @@ function ArcheryGameView({tablets}) {
       ctx.textAlign = "right";
       ctx.fillStyle = "rgba(232,220,200,0.5)";
       ctx.font = "11px 'Noto Sans TC',sans-serif";
-      ctx.fillText("點擊射箭", GAME_W - 10, 16);
+      ctx.fillText(g.level===2?"Lv.2 x2":"Lv.1", GAME_W - 10, 16);
 
       g.frameId = requestAnimationFrame(gameLoop);
     };
@@ -1233,17 +1349,21 @@ function ArcheryGameView({tablets}) {
         <div className="sec-title">🏹 神射手</div>
         <div className="gcard">
           <p style={{color:T.textDim,marginBottom:6,fontSize:14}}>選擇牌位名字，開始射擊遊戲</p>
-          <p style={{color:T.textDim,marginBottom:20,fontSize:12}}>牌位會從天空不斷掉下，射中就爆炸消失！</p>
+          <p style={{color:T.textDim,marginBottom:6,fontSize:12}}>第 1 關：射中牌位即爆炸（30 秒）</p>
+          <p style={{color:T.textDim,marginBottom:20,fontSize:12}}>第 2 關：牌位隨機角度掉落，需命中兩次（30 秒）</p>
           {highScore > 0 && <p style={{color:T.cyan,fontWeight:700,marginBottom:16,fontSize:14}}>最高分: {highScore}</p>}
           {tablets.length === 0 ? (
             <p style={{color:T.textDim}}>尚無牌位，請先立牌位</p>
           ) : (
-            <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-              {tablets.map(t => (
-                <button key={t.id} className="gbtn" onClick={() => startGame(t.name)}>
-                  {t.name}
-                </button>
-              ))}
+            <div>
+              <p style={{color:T.text,fontSize:13,marginBottom:8,fontWeight:700}}>選擇目標（從第 1 關開始）</p>
+              <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+                {tablets.map(t => (
+                  <button key={t.id} className="gbtn" onClick={() => startGame(t.name, 1)}>
+                    {t.name}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -1253,27 +1373,71 @@ function ArcheryGameView({tablets}) {
   }
 
   if (gamePhase === "gameover") {
+    const finalScore = totalScore;
+    const isLv1Done = level === 1;
+    const isLv2Done = level === 2;
     return (
       <div>
         <div className="sec-title">🏹 神射手</div>
         <div className="gcard" style={{textAlign:"center",padding:30}}>
           <div style={{fontSize:48,marginBottom:12}}>💥</div>
-          <p style={{fontWeight:900,fontSize:22,color:T.gold,marginBottom:4}}>時間到</p>
-          <p style={{fontSize:40,fontWeight:900,color:T.gold,marginBottom:4}}>{displayScore} 分</p>
-          {displayScore >= highScore && displayScore > 0 && <p style={{color:T.cyan,fontWeight:700,fontSize:14,marginBottom:12}}>新紀錄！</p>}
+          <p style={{fontWeight:900,fontSize:20,color:T.gold,marginBottom:4}}>第 {level} 關結束</p>
+          <p style={{color:T.text,fontSize:14,marginBottom:4}}>本關得分</p>
+          <p style={{fontSize:36,fontWeight:900,color:T.gold,marginBottom:4}}>{displayScore} 分</p>
+          {isLv2Done && <p style={{color:T.cyan,fontSize:14,fontWeight:700,marginBottom:4}}>兩關總分: {finalScore} 分</p>}
+          {finalScore >= highScore && finalScore > 0 && <p style={{color:T.cyan,fontWeight:700,fontSize:14,marginBottom:12}}>新紀錄！</p>}
           <p style={{color:T.textDim,fontSize:13,marginBottom:20}}>最高分: {highScore}</p>
+          {isLv1Done && (
+            <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap",marginBottom:20}}>
+              <button className="gbtn gbtn-danger gbtn-lg" onClick={() => startGame(selectedName, 2)}>挑戰第 2 關</button>
+              <button className="gbtn" onClick={() => setGamePhase("settle")}>直接結算</button>
+            </div>
+          )}
+          {isLv2Done && (
+            <div style={{marginBottom:20}}>
+              {!saved && (
+                <div style={{marginBottom:16}}>
+                  <p style={{color:T.text,fontSize:13,marginBottom:8}}>輸入名字記錄成績</p>
+                  <div style={{display:"flex",gap:8,justifyContent:"center",alignItems:"center",flexWrap:"wrap"}}>
+                    <input className="ginput" value={playerName} onChange={e=>setPlayerName(e.target.value)} placeholder="你的名字" style={{maxWidth:160,textAlign:"center"}} maxLength={10}/>
+                    <button className="gbtn gbtn-primary" onClick={()=>{ setHighScore(prev=>Math.max(prev,finalScore)); saveScore(playerName,finalScore)}} disabled={saving||!playerName.trim()}>{saving?"儲存中...":"儲存成績"}</button>
+                  </div>
+                </div>
+              )}
+              {saved && <p style={{color:T.cyan,fontWeight:700,fontSize:13,marginBottom:16}}>成績已儲存</p>}
+              <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
+                <button className="gbtn gbtn-primary gbtn-lg" onClick={() => startGame(selectedName, 1)}>重新挑戰</button>
+                <button className="gbtn" onClick={() => { setGamePhase("select"); setSelectedName(null) }}>換目標</button>
+              </div>
+            </div>
+          )}
+        </div>
+        <ScoreBoard scores={scoreList} title="排行榜 TOP 10"/>
+      </div>
+    );
+  }
+
+  if (gamePhase === "settle") {
+    const finalScore = totalScore;
+    return (
+      <div>
+        <div className="sec-title">🏹 神射手</div>
+        <div className="gcard" style={{textAlign:"center",padding:30}}>
+          <div style={{fontSize:48,marginBottom:12}}>🏆</div>
+          <p style={{fontWeight:900,fontSize:20,color:T.gold,marginBottom:8}}>結算成績</p>
+          <p style={{fontSize:40,fontWeight:900,color:T.gold,marginBottom:12}}>{finalScore} 分</p>
           {!saved && (
             <div style={{marginBottom:20}}>
               <p style={{color:T.text,fontSize:13,marginBottom:8}}>輸入名字記錄成績</p>
               <div style={{display:"flex",gap:8,justifyContent:"center",alignItems:"center",flexWrap:"wrap"}}>
                 <input className="ginput" value={playerName} onChange={e=>setPlayerName(e.target.value)} placeholder="你的名字" style={{maxWidth:160,textAlign:"center"}} maxLength={10}/>
-                <button className="gbtn gbtn-primary" onClick={()=>saveScore(playerName,displayScore)} disabled={saving||!playerName.trim()}>{saving?"儲存中...":"儲存成績"}</button>
+                <button className="gbtn gbtn-primary" onClick={()=>{ setHighScore(prev=>Math.max(prev,finalScore)); saveScore(playerName,finalScore)}} disabled={saving||!playerName.trim()}>{saving?"儲存中...":"儲存成績"}</button>
               </div>
             </div>
           )}
           {saved && <p style={{color:T.cyan,fontWeight:700,fontSize:13,marginBottom:16}}>成績已儲存</p>}
           <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
-            <button className="gbtn gbtn-primary gbtn-lg" onClick={() => startGame(selectedName)}>再玩一次</button>
+            <button className="gbtn gbtn-primary gbtn-lg" onClick={() => startGame(selectedName, 1)}>重新挑戰</button>
             <button className="gbtn" onClick={() => { setGamePhase("select"); setSelectedName(null) }}>換目標</button>
           </div>
         </div>
@@ -1401,6 +1565,15 @@ function App() {
     addToast("己為「"+(up.find(t=>t.id===id)?.name)+"」上了 "+count+" 柱香");
   };
 
+  const handleDelete = (id) => {
+    const t = tablets.find(x=>x.id===id);
+    if(!t) return;
+    const up = tablets.filter(x=>x.id!==id);
+    setTablets(up); syncToGas(up);
+    setSelectedTablet(null);
+    addToast("「"+t.name+"」牌位已移除","info");
+  };
+
   const renderView = () => {
     switch(view){
       case "hall": return <HallView tablets={tablets} onSelectTablet={setSelectedTablet}/>;
@@ -1445,6 +1618,7 @@ function App() {
       {selectedTablet && (
         <EnlargedTabletView tablet={selectedTablet} onClose={()=>setSelectedTablet(null)}
           onAddIncense={(id,count) => { handleAddIncense(id,count); setSelectedTablet(prev=>prev?{...prev,incenseCount:prev.incenseCount+count}:null) }}
+          onDelete={handleDelete}
         />
       )}
 
