@@ -837,6 +837,26 @@ function PunishmentView({tablets}) {
 /* ================================================================
    Archery Game View - Space Invaders Style
    ================================================================ */
+function ScoreBoard({scores, title}) {
+  if (!scores || scores.length === 0) return null;
+  const top10 = scores.slice(0, 10);
+  return (
+    <div className="gcard" style={{marginTop:14}}>
+      <p style={{fontWeight:900,fontSize:15,color:T.gold,marginBottom:10}}>{title || "排行榜"}</p>
+      <div style={{fontSize:13}}>
+        {top10.map((s, i) => (
+          <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",borderBottom:i<top10.length-1?`1px solid ${T.border}`:"none"}}>
+            <span style={{color:i<3?T.gold:T.text,fontWeight:i<3?900:400}}>
+              {i===0?"🥇":i===1?"🥈":i===2?"🥉":(i+1)+"."} {s.playerName}
+            </span>
+            <span style={{color:T.cyan,fontWeight:700}}>{s.score} 分</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ArcheryGameView({tablets}) {
   const [selectedName, setSelectedName] = useState(null);
   const [gamePhase, setGamePhase] = useState("select");
@@ -846,8 +866,22 @@ function ArcheryGameView({tablets}) {
   const [playerName, setPlayerName] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [scoreList, setScoreList] = useState([]);
   const canvasRef = useRef(null);
   const gameRef = useRef(null);
+
+  const fetchScores = useCallback(async () => {
+    try {
+      const r = await fetch(GAS_URL + "?action=scores", {redirect:"follow"});
+      const data = await r.json();
+      if (Array.isArray(data)) {
+        setScoreList(data);
+        if (data.length > 0) setHighScore(data[0].score || 0);
+      }
+    } catch(e) { console.warn("Fetch scores failed:", e.message); }
+  }, []);
+
+  useEffect(() => { fetchScores(); }, []);
 
   const GAME_W = 360;
   const GAME_H = 400;
@@ -885,10 +919,17 @@ function ArcheryGameView({tablets}) {
     try {
       await fetch(GAS_URL, {
         method: "POST",
-        headers: {"Content-Type":"application/json"},
+        mode: "no-cors",
         body: JSON.stringify({action:"saveScore",playerName:pName.trim(),score:score,targetName:selectedName,date:new Date().toISOString()}),
       });
+      const newEntry = {playerName:pName.trim(), score:score, targetName:selectedName};
+      setScoreList(prev => {
+        const updated = [...prev, newEntry];
+        updated.sort((a,b) => (b.score||0) - (a.score||0));
+        return updated;
+      });
       setSaved(true);
+      setTimeout(() => fetchScores(), 3000);
     } catch(e) {
       console.warn("Score save failed:", e.message);
     }
@@ -1206,6 +1247,7 @@ function ArcheryGameView({tablets}) {
             </div>
           )}
         </div>
+        <ScoreBoard scores={scoreList} title="排行榜 TOP 10"/>
       </div>
     );
   }
@@ -1235,6 +1277,7 @@ function ArcheryGameView({tablets}) {
             <button className="gbtn" onClick={() => { setGamePhase("select"); setSelectedName(null) }}>換目標</button>
           </div>
         </div>
+        <ScoreBoard scores={scoreList} title="排行榜 TOP 10"/>
       </div>
     );
   }
