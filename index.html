@@ -1045,6 +1045,7 @@ function ArcheryGameView({tablets}) {
       running: true,
       spawnTimer: 0,
       frameCount: 0,
+      normalSpawnCount: 0,
       name: name,
       lastClickTime: 0,
       startTime: Date.now(),
@@ -1095,7 +1096,7 @@ function ArcheryGameView({tablets}) {
     }
     const x = (clientX - rect.left) * scaleX;
     g.archerX = Math.max(20, Math.min(GAME_W - 20, x));
-    if (g.level === 4) {
+    if (g.level >= 4) {
       g.arrows.push({ x: g.archerX - 10, y: GAME_H - 55 });
       g.arrows.push({ x: g.archerX + 10, y: GAME_H - 55 });
     } else {
@@ -1164,17 +1165,22 @@ function ArcheryGameView({tablets}) {
       const speedMax = 2.5 + difficulty * 0.35;
 
       g.spawnTimer += dt60;
-      const spawnMult = g.level === 4 ? 1.5 : 1;
+      const spawnMult = g.level >= 4 ? 1.5 : 1;
       const adjInterval = Math.max(10, Math.round(spawnInterval / spawnMult));
       if (g.spawnTimer >= adjInterval) {
         const angles = [0, -30, -15, 15, 30, 90];
         const ang = g.level >= 2 ? angles[Math.floor(Math.random() * angles.length)] : 0;
-        const sc = g.level === 4 ? 0.65 : 1;
+        const sc = g.level >= 4 ? 0.65 : 1;
         const tw_s = TW * sc;
         const th_s = TH * sc;
         const isHoriz = Math.abs(ang) === 90;
         const effW = isHoriz ? th_s : tw_s;
         const spd = speedMin + Math.random() * (speedMax - speedMin);
+        var isForbidden = false;
+        if (g.level === 5) {
+          g.normalSpawnCount++;
+          if (g.normalSpawnCount % 11 === 0) { isForbidden = true; }
+        }
         g.tablets.push({
           x: 10 + Math.random() * (GAME_W - effW - 20),
           y: -th_s,
@@ -1185,6 +1191,7 @@ function ArcheryGameView({tablets}) {
           maxHp: g.level >= 2 ? 2 : 1,
           scale: sc,
           bouncing: g.level >= 3,
+          forbidden: isForbidden,
         });
         g.spawnTimer = 0;
       }
@@ -1217,13 +1224,24 @@ function ArcheryGameView({tablets}) {
           if (!hitSomething && a.x > t.x - 4 && a.x < t.x + hitW + 4 && a.y > t.y && a.y < t.y + hitH) {
             hitSomething = true;
             t.hp--;
-            if (t.hp <= 0) {
-              g.explosions.push({ x: cx, y: cy, frame: 0 });
-              g.score += g.level >= 2 ? 20 : 10;
-              g.tablets.splice(ti, 1);
+            if (t.forbidden) {
+              if (t.hp <= 0) {
+                g.explosions.push({ x: cx, y: cy, frame: 0, penalty: true });
+                g.score = Math.max(0, g.score - 10);
+                g.tablets.splice(ti, 1);
+              } else {
+                g.score = Math.max(0, g.score - 5);
+                g.explosions.push({ x: a.x, y: a.y, frame: 8, small: true, penalty: true });
+              }
             } else {
-              g.score += 5;
-              g.explosions.push({ x: a.x, y: a.y, frame: 8, small: true });
+              if (t.hp <= 0) {
+                g.explosions.push({ x: cx, y: cy, frame: 0 });
+                g.score += g.level >= 2 ? 20 : 10;
+                g.tablets.splice(ti, 1);
+              } else {
+                g.score += 5;
+                g.explosions.push({ x: a.x, y: a.y, frame: 8, small: true });
+              }
             }
             setDisplayScore(g.score);
           }
@@ -1273,45 +1291,69 @@ function ArcheryGameView({tablets}) {
         const cy = t.y + drawH / 2;
         ctx.translate(cx, cy);
         ctx.rotate(ang);
-        ctx.shadowColor = "rgba(255,215,0,0.2)";
-        ctx.shadowBlur = 8;
-        const tg = ctx.createLinearGradient(0, -th_d/2, 0, th_d/2);
-        tg.addColorStop(0, "#3D2415");
-        tg.addColorStop(0.3, "#5C3A1E");
-        tg.addColorStop(0.5, "#8B5A2B");
-        tg.addColorStop(0.7, "#5C3A1E");
-        tg.addColorStop(1, "#3D2415");
-        ctx.fillStyle = tg;
-        ctx.fillRect(-tw_d/2, -th_d/2, tw_d, th_d);
-        ctx.shadowBlur = 0;
-        ctx.strokeStyle = "#FFD700";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(-tw_d/2, -th_d/2, tw_d, th_d);
-        ctx.strokeStyle = "rgba(255,215,0,0.25)";
-        ctx.lineWidth = 1;
-        ctx.strokeRect(-tw_d/2+3, -th_d/2+3, tw_d-6, th_d-6);
-        ctx.fillStyle = "#FFF3B0";
-        const fontSize = Math.round(11 * sc);
-        const lineH = Math.round(14 * sc);
-        ctx.font = "bold " + fontSize + "px 'Noto Sans TC',sans-serif";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "top";
-        const chars = (g.name || "").split("");
-        const startY = -th_d/2 + Math.max(2, (th_d - chars.length * lineH) / 2);
-        chars.forEach((ch, i) => {
-          ctx.fillText(ch, 0, startY + i * lineH);
-        });
-        if (t.maxHp > 1 && t.hp === 1) {
+        if (t.forbidden) {
+          ctx.shadowColor = "rgba(255,60,60,0.4)";
+          ctx.shadowBlur = 10;
+          const fg = ctx.createLinearGradient(0, -th_d/2, 0, th_d/2);
+          fg.addColorStop(0, "#1a1a3a");
+          fg.addColorStop(0.5, "#2a2a5a");
+          fg.addColorStop(1, "#1a1a3a");
+          ctx.fillStyle = fg;
+          ctx.fillRect(-tw_d/2, -th_d/2, tw_d, th_d);
+          ctx.shadowBlur = 0;
           ctx.strokeStyle = "#FF4444";
+          ctx.lineWidth = 2.5;
+          ctx.strokeRect(-tw_d/2, -th_d/2, tw_d, th_d);
+          ctx.strokeStyle = "rgba(255,68,68,0.3)";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(-tw_d/2+3, -th_d/2+3, tw_d-6, th_d-6);
+          ctx.fillStyle = "#FF6666";
+          const fSize = Math.round(16 * sc);
+          ctx.font = "bold " + fSize + "px 'Noto Sans TC',sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("\u93ae", 0, 0);
+          if (t.maxHp > 1 && t.hp === 1) {
+            ctx.strokeStyle = "#FFAA00";
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(-tw_d/2+4,-th_d/2+4); ctx.lineTo(tw_d/2-4,th_d/2-4); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(tw_d/2-4,-th_d/2+4); ctx.lineTo(-tw_d/2+4,th_d/2-4); ctx.stroke();
+          }
+        } else {
+          ctx.shadowColor = "rgba(255,215,0,0.2)";
+          ctx.shadowBlur = 8;
+          const tg = ctx.createLinearGradient(0, -th_d/2, 0, th_d/2);
+          tg.addColorStop(0, "#3D2415");
+          tg.addColorStop(0.3, "#5C3A1E");
+          tg.addColorStop(0.5, "#8B5A2B");
+          tg.addColorStop(0.7, "#5C3A1E");
+          tg.addColorStop(1, "#3D2415");
+          ctx.fillStyle = tg;
+          ctx.fillRect(-tw_d/2, -th_d/2, tw_d, th_d);
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = "#FFD700";
           ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.moveTo(-tw_d/2 + 4, -th_d/2 + 4);
-          ctx.lineTo(tw_d/2 - 4, th_d/2 - 4);
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.moveTo(tw_d/2 - 4, -th_d/2 + 4);
-          ctx.lineTo(-tw_d/2 + 4, th_d/2 - 4);
-          ctx.stroke();
+          ctx.strokeRect(-tw_d/2, -th_d/2, tw_d, th_d);
+          ctx.strokeStyle = "rgba(255,215,0,0.25)";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(-tw_d/2+3, -th_d/2+3, tw_d-6, th_d-6);
+          ctx.fillStyle = "#FFF3B0";
+          const fontSize = Math.round(11 * sc);
+          const lineH = Math.round(14 * sc);
+          ctx.font = "bold " + fontSize + "px 'Noto Sans TC',sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "top";
+          const chars = (g.name || "").split("");
+          const startY = -th_d/2 + Math.max(2, (th_d - chars.length * lineH) / 2);
+          chars.forEach((ch, i) => {
+            ctx.fillText(ch, 0, startY + i * lineH);
+          });
+          if (t.maxHp > 1 && t.hp === 1) {
+            ctx.strokeStyle = "#FF4444";
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(-tw_d/2+4,-th_d/2+4); ctx.lineTo(tw_d/2-4,th_d/2-4); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(tw_d/2-4,-th_d/2+4); ctx.lineTo(-tw_d/2+4,th_d/2-4); ctx.stroke();
+          }
         }
         ctx.restore();
       }
@@ -1336,7 +1378,16 @@ function ArcheryGameView({tablets}) {
       }
 
       for (const e of g.explosions) {
-        if (e.small) { const sp = e.frame / 16; const sa = Math.max(0,1-sp); ctx.save(); ctx.globalCompositeOperation="lighter"; ctx.beginPath(); ctx.arc(e.x,e.y,4+sp*15,0,Math.PI*2); ctx.fillStyle=`rgba(255,200,0,${sa*0.6})`; ctx.fill(); ctx.restore(); continue; }
+        const isPen = e.penalty;
+        if (e.small) {
+          const sp = e.frame / 16; const sa = Math.max(0,1-sp);
+          ctx.save(); ctx.globalCompositeOperation="lighter";
+          ctx.beginPath(); ctx.arc(e.x,e.y,4+sp*15,0,Math.PI*2);
+          ctx.fillStyle = isPen ? `rgba(255,50,50,${sa*0.7})` : `rgba(255,200,0,${sa*0.6})`;
+          ctx.fill();
+          if (isPen) { ctx.globalCompositeOperation="source-over"; ctx.fillStyle=`rgba(255,100,100,${sa})`; ctx.font="bold 14px sans-serif"; ctx.textAlign="center"; ctx.fillText("-5",e.x,e.y-10-sp*20); }
+          ctx.restore(); continue;
+        }
         const p = e.frame / 24;
         const r = 6 + p * 40;
         const a = Math.max(0, 1 - p);
@@ -1344,15 +1395,15 @@ function ArcheryGameView({tablets}) {
         ctx.globalCompositeOperation = "lighter";
         ctx.beginPath();
         ctx.arc(e.x, e.y, r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,80,0,${a * 0.3})`;
+        ctx.fillStyle = isPen ? `rgba(255,30,30,${a * 0.4})` : `rgba(255,80,0,${a * 0.3})`;
         ctx.fill();
         ctx.beginPath();
         ctx.arc(e.x, e.y, r * 0.55, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,180,0,${a * 0.5})`;
+        ctx.fillStyle = isPen ? `rgba(255,80,80,${a * 0.5})` : `rgba(255,180,0,${a * 0.5})`;
         ctx.fill();
         ctx.beginPath();
         ctx.arc(e.x, e.y, r * 0.25, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,255,200,${a * 0.9})`;
+        ctx.fillStyle = isPen ? `rgba(255,150,150,${a * 0.9})` : `rgba(255,255,200,${a * 0.9})`;
         ctx.fill();
         for (let i = 0; i < 8; i++) {
           const angle = (Math.PI * 2 / 8) * i + p * 3;
@@ -1361,9 +1412,10 @@ function ArcheryGameView({tablets}) {
           const py = e.y + Math.sin(angle) * dist;
           ctx.beginPath();
           ctx.arc(px, py, 2.5 * (1 - p), 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(255,215,0,${a * 0.8})`;
+          ctx.fillStyle = isPen ? `rgba(255,100,100,${a * 0.8})` : `rgba(255,215,0,${a * 0.8})`;
           ctx.fill();
         }
+        if (isPen) { ctx.globalCompositeOperation="source-over"; ctx.fillStyle=`rgba(255,100,100,${a})`; ctx.font="bold 18px sans-serif"; ctx.textAlign="center"; ctx.fillText("-10",e.x,e.y-12-p*30); }
         ctx.restore();
       }
 
@@ -1427,7 +1479,7 @@ function ArcheryGameView({tablets}) {
       ctx.textAlign = "right";
       ctx.fillStyle = "rgba(232,220,200,0.5)";
       ctx.font = "11px 'Noto Sans TC',sans-serif";
-      const lvLabels = {1:"Lv.1",2:"Lv.2 x2",3:"Lv.3 Bounce",4:"Lv.4 Mini"};
+      const lvLabels = {1:"Lv.1",2:"Lv.2 x2",3:"Lv.3 Bounce",4:"Lv.4 Mini",5:"Lv.5 \u93ae"};
       ctx.fillText(lvLabels[g.level] || "Lv."+g.level, GAME_W - 10, 16);
 
       g.frameId = requestAnimationFrame(gameLoop);
@@ -1447,11 +1499,17 @@ function ArcheryGameView({tablets}) {
       <div>
         <div className="sec-title">🏹 神射手</div>
         <div className="gcard">
-          <p style={{color:T.textDim,marginBottom:6,fontSize:14}}>選擇牌位名字，開始射擊遊戲</p>
-          <p style={{color:T.textDim,marginBottom:4,fontSize:12}}>第 1 關：射中牌位即爆炸</p>
-          <p style={{color:T.textDim,marginBottom:4,fontSize:12}}>第 2 關：牌位隨機角度，需命中兩次</p>
-          <p style={{color:T.textDim,marginBottom:4,fontSize:12}}>第 3 關：牌位會彈跳，需命中兩次</p>
-          <p style={{color:T.textDim,marginBottom:20,fontSize:12}}>第 4 關：牌位縮小彈跳 x1.5 倍數量，弓箭一次射兩隻</p>
+          <p style={{color:T.textDim,marginBottom:10,fontSize:14}}>選擇牌位名字，開始射擊遊戲（每關 30 秒）</p>
+          <div style={{background:"rgba(255,255,255,0.04)",borderRadius:8,padding:"10px 12px",marginBottom:16,fontSize:12,lineHeight:"1.8",color:T.textDim}}>
+            <p style={{color:T.gold,fontWeight:700,marginBottom:4,fontSize:13}}>遊戲規則</p>
+            <p>第 1 關：牌位直線掉落，射中即爆炸（+10 分）</p>
+            <p>第 2 關：牌位隨機角度掉落，需命中 2 次（首擊 +5，擊殺 +20）</p>
+            <p>第 3 關：牌位上下彈跳，需命中 2 次（首擊 +5，擊殺 +20）</p>
+            <p>第 4 關：牌位縮小且彈跳，數量 x1.5 倍，需命中 2 次，弓箭一次射 2 隻（首擊 +5，擊殺 +20）</p>
+            <p>第 5 關：同第 4 關，另外出現藍色「鎮」牌位（每 10 個正常牌位出現 1 個）</p>
+            <p style={{color:"#FF6666"}}>「鎮」牌位不可射擊：射中 1 次 -5 分，射中 2 次爆炸 -10 分</p>
+            <p style={{marginTop:6,color:T.text}}>每關結束可選擇挑戰下一關或直接結算，累計總分記錄排行榜。</p>
+          </div>
           {highScore > 0 && <p style={{color:T.cyan,fontWeight:700,marginBottom:16,fontSize:14}}>最高分: {highScore}</p>}
           {tablets.length === 0 ? (
             <p style={{color:T.textDim}}>尚無牌位，請先立牌位</p>
@@ -1475,9 +1533,9 @@ function ArcheryGameView({tablets}) {
 
   if (gamePhase === "gameover") {
     const finalScore = totalScore;
-    const canContinue = level < 4;
+    const canContinue = level < 5;
     const nextLv = level + 1;
-    const isFinal = level === 4;
+    const isFinal = level === 5;
     return (
       <div>
         <div className="sec-title">🏹 神射手</div>
@@ -1612,7 +1670,7 @@ function SettingsView({gasUrl, onGasUrlChange, onConnect, connected, tablets}) {
    Footer
    ================================================================ */
 function Footer() {
-  return <div className="footer">v0.7.0 | ©2026 <a href="https://huobest.com/" target="_blank" rel="noopener noreferrer">霍家私塾</a></div>;
+  return <div className="footer">v0.0.1 | ©2026 <a href="https://huobest.com/" target="_blank" rel="noopener noreferrer">霍家私塾</a></div>;
 }
 
 /* ================================================================
