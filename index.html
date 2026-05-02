@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -51,7 +50,7 @@ const T = {
   borderBright: "rgba(255,215,0,0.5)",
 };
 
-const GAS_URL = "https://script.google.com/macros/s/AKfycbyGOd5u0qf1WNJ9WS-TXK-VcMpGfh2nzll7wQcObPFRnEbe-QjX-pm2u4YqHC-7XAaBLw/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbyB9cK62miZST27iWkr9n-CoJp7ysLz3Wh88Bp3XYraIysi-1okJTKEbbesX1n4IAYdvg/exec";
 
 const ANIMALS = [
   { id: "duck", emoji: "🦆", label: "鴨子" },
@@ -69,6 +68,7 @@ const VIEWS = [
   { id: "leaderboard", label: "惡人榜", icon: "🔥" },
   { id: "punishments", label: "處罰", icon: "⚡" },
   { id: "archery", label: "神射手", icon: "🏹" },
+  { id: "whack", label: "打牌位", icon: "🔨" },
   { id: "settings", label: "設定", icon: "⚙️" },
 ];
 
@@ -439,6 +439,104 @@ body{
 }
 .footer a{color:${T.gold};text-decoration:none}
 .footer a:hover{text-decoration:underline}
+
+/* === Whack Tablet Game === */
+.whack-board{
+  display:grid;gap:6px;aspect-ratio:1/1;width:100%;max-width:520px;margin:0 auto;
+  background:linear-gradient(180deg,#1a0830,#2d1448);
+  border:2px solid ${T.border};border-radius:14px;padding:8px;
+  box-shadow:inset 0 0 24px rgba(0,0,0,0.55);
+  touch-action:manipulation;
+}
+.whack-board.grid-3{grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr)}
+.whack-board.grid-4{grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(4,1fr)}
+.whack-board.grid-5{grid-template-columns:repeat(5,1fr);grid-template-rows:repeat(5,1fr)}
+
+.whack-cell{position:relative;overflow:hidden;border-radius:8px;background:rgba(0,0,0,0.35)}
+.whack-hole{
+  position:absolute;bottom:6%;left:10%;width:80%;height:26%;
+  background:radial-gradient(ellipse at center,#000 30%,rgba(0,0,0,0.4) 90%);
+  border-radius:50%;box-shadow:inset 0 4px 10px rgba(0,0,0,0.95);
+}
+.whack-tablet{
+  position:absolute;bottom:14%;left:11%;width:78%;height:80%;
+  background:linear-gradient(180deg,#3D2415 0%,#5C3A1E 30%,#8B5A2B 50%,#5C3A1E 70%,#3D2415 100%);
+  border:2px solid ${T.gold};border-radius:5px;cursor:pointer;z-index:2;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 14px rgba(255,215,0,0.45),inset 0 0 10px rgba(0,0,0,0.45);
+  animation:whackPop 0.18s cubic-bezier(0.18,0.89,0.32,1.28) forwards;
+  user-select:none;-webkit-user-select:none;
+}
+.whack-tablet-name{
+  font-weight:900;writing-mode:vertical-rl;color:#FFFFFF;
+  text-shadow:
+    0 0 6px #FFD700,
+    0 0 12px rgba(255,215,0,0.6),
+    -1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;
+  pointer-events:none;
+}
+.whack-board.grid-3 .whack-tablet-name{font-size:30px;letter-spacing:6px}
+.whack-board.grid-4 .whack-tablet-name{font-size:22px;letter-spacing:4px}
+.whack-board.grid-5 .whack-tablet-name{font-size:17px;letter-spacing:3px}
+
+/* 受傷狀態：第一擊未擊破時的視覺回饋 */
+.whack-tablet.wounded{
+  border-color:#FF8800;
+  background:linear-gradient(180deg,#3a1f12 0%,#5C3A1E 30%,#7a4525 50%,#5C3A1E 70%,#3a1f12 100%);
+  box-shadow:0 0 14px rgba(255,136,0,0.7),inset 0 0 10px rgba(150,40,0,0.5);
+  filter:saturate(0.85);
+  animation:whackPop 0.18s cubic-bezier(0.18,0.89,0.32,1.28) forwards,woundedFlash 0.25s ease-out;
+}
+.whack-tablet.wounded::after{
+  content:'';position:absolute;top:18%;left:8%;right:8%;bottom:18%;
+  background:
+    linear-gradient(120deg,transparent 38%,rgba(0,0,0,0.55) 39%,rgba(0,0,0,0.55) 41%,transparent 42%),
+    linear-gradient(70deg,transparent 55%,rgba(0,0,0,0.45) 56%,rgba(0,0,0,0.45) 58%,transparent 59%);
+  pointer-events:none;
+}
+.whack-tablet.wounded .whack-tablet-name{
+  text-shadow:0 0 6px #FF8800,-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;
+}
+@keyframes woundedFlash{
+  0%{filter:saturate(2) brightness(1.6)}
+  100%{filter:saturate(0.85) brightness(1)}
+}
+
+.whack-tablet.bomb{
+  background:radial-gradient(circle at 50% 35%,#5a5a5a 0%,#1a1a1a 60%,#000 100%);
+  border-color:#ff3030;
+  box-shadow:0 0 16px rgba(255,30,30,0.7),inset 0 0 10px rgba(0,0,0,0.6);
+  animation:whackPop 0.18s cubic-bezier(0.18,0.89,0.32,1.28) forwards,bombPulse 0.7s ease-in-out infinite alternate;
+}
+.whack-tablet.bomb .whack-tablet-name{
+  writing-mode:horizontal-tb;letter-spacing:0;
+  text-shadow:0 0 10px #ff0000,0 0 4px #000;
+}
+.whack-board.grid-3 .whack-tablet.bomb .whack-tablet-name{font-size:42px}
+.whack-board.grid-4 .whack-tablet.bomb .whack-tablet-name{font-size:32px}
+.whack-board.grid-5 .whack-tablet.bomb .whack-tablet-name{font-size:24px}
+@keyframes bombPulse{from{box-shadow:0 0 14px rgba(255,30,30,0.55),inset 0 0 10px rgba(0,0,0,0.6)}to{box-shadow:0 0 24px rgba(255,30,30,0.95),inset 0 0 12px rgba(0,0,0,0.6)}}
+
+@keyframes whackPop{from{transform:translateY(115%)}to{transform:translateY(0)}}
+.whack-float{
+  position:absolute;top:0;left:50%;transform:translateX(-50%);
+  font-weight:900;font-size:16px;pointer-events:none;
+  animation:whackFloatUp 0.6s ease-out forwards;z-index:10;
+  text-shadow:0 0 4px rgba(0,0,0,0.95),0 0 2px rgba(0,0,0,0.95);
+}
+@keyframes whackFloatUp{
+  0%{transform:translate(-50%,0);opacity:1}
+  100%{transform:translate(-50%,-32px);opacity:0}
+}
+@media (max-width:480px){
+  .whack-board{padding:5px;gap:4px;max-width:100%}
+  .whack-board.grid-3 .whack-tablet-name{font-size:24px;letter-spacing:4px}
+  .whack-board.grid-4 .whack-tablet-name{font-size:18px;letter-spacing:3px}
+  .whack-board.grid-5 .whack-tablet-name{font-size:14px;letter-spacing:2px}
+  .whack-board.grid-3 .whack-tablet.bomb .whack-tablet-name{font-size:34px}
+  .whack-board.grid-4 .whack-tablet.bomb .whack-tablet-name{font-size:26px}
+  .whack-board.grid-5 .whack-tablet.bomb .whack-tablet-name{font-size:20px}
+}
 `;
 
 /* ================================================================
@@ -581,17 +679,22 @@ function HallView({tablets, onSelectTablet}) {
 /* ================================================================
    Enlarged Tablet Overlay
    ================================================================ */
-function EnlargedTabletView({tablet, onClose, onAddIncense, onDelete}) {
+function EnlargedTabletView({tablet, onClose, onAddIncense, onDelete, onUpdateNickname}) {
   const [count, setCount] = useState(3);
   const [animating, setAnimating] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [nicknameInput, setNicknameInput] = useState(tablet.nickname || "");
+  useEffect(() => { setNicknameInput(tablet.nickname || ""); }, [tablet.id, tablet.nickname]);
+  const currentNickname = (tablet.nickname || "").trim();
+  const inputTrim = nicknameInput.trim().slice(0, 3);
+  const nicknameDirty = inputTrim !== currentNickname;
   const handleBurn = () => {
     setAnimating(true);
     setTimeout(() => { onAddIncense(tablet.id, count); setAnimating(false) }, 2100);
   };
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20,backdropFilter:"blur(8px)"}} onClick={onClose}>
-      <div className="gcard" style={{maxWidth:420,width:"100%",textAlign:"center"}} onClick={e=>e.stopPropagation()}>
+      <div className="gcard" style={{maxWidth:420,width:"100%",textAlign:"center",maxHeight:"90vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
         <div style={{display:"flex",justifyContent:"center",marginBottom:24}}>
           <TabletCard tablet={tablet} size="lg"/>
         </div>
@@ -608,7 +711,21 @@ function EnlargedTabletView({tablet, onClose, onAddIncense, onDelete}) {
           <button className="gbtn gbtn-primary gbtn-lg mobile-full" onClick={handleBurn} disabled={animating}>🐾 上香</button>
           <button className="gbtn mobile-full" onClick={onClose}>關閉</button>
         </div>
+
         <div style={{marginTop:20,paddingTop:16,borderTop:`1px solid ${T.border}`}}>
+          <p style={{color:T.gold,fontWeight:700,fontSize:13,marginBottom:6}}>遊戲顯示暱稱（最多 3 字）</p>
+          <p style={{color:T.textDim,fontSize:12,marginBottom:10}}>
+            {currentNickname ? `目前：${currentNickname}` : "尚未設定，遊戲中將顯示原始名字"}
+          </p>
+          <div style={{display:"flex",gap:8,justifyContent:"center",alignItems:"center",flexWrap:"wrap"}}>
+            <input className="ginput" value={nicknameInput} onChange={e=>setNicknameInput(e.target.value.slice(0,3))} placeholder="可不設定" maxLength={3} style={{maxWidth:140,textAlign:"center"}}/>
+            <button className="gbtn gbtn-sm gbtn-primary" onClick={()=>onUpdateNickname(tablet.id, inputTrim)} disabled={!nicknameDirty}>
+              {currentNickname && !inputTrim ? "清除暱稱" : (currentNickname ? "更新暱稱" : "儲存暱稱")}
+            </button>
+          </div>
+        </div>
+
+        <div style={{marginTop:16,paddingTop:16,borderTop:`1px solid ${T.border}`}}>
           {!confirmDelete ? (
             <button className="gbtn gbtn-sm" style={{color:T.red,opacity:0.6,fontSize:12}} onClick={()=>setConfirmDelete(true)}>移除此牌位</button>
           ) : (
@@ -632,25 +749,28 @@ function EnlargedTabletView({tablet, onClose, onAddIncense, onDelete}) {
    ================================================================ */
 function CreateTabletView({onCreate}) {
   const [name, setName] = useState("");
+  const [nickname, setNickname] = useState("");
   const [count, setCount] = useState(3);
   const [animating, setAnimating] = useState(false);
   const handleCreate = () => {
     if (!name.trim()) return;
     setAnimating(true);
-    setTimeout(() => { onCreate(name.trim(), count); setName(""); setAnimating(false) }, 1800);
+    setTimeout(() => { onCreate(name.trim(), nickname.trim().slice(0,3), count); setName(""); setNickname(""); setAnimating(false) }, 1800);
   };
   return (
     <div>
       <div className="sec-title">🐾 立牌位</div>
       <div className="gcard">
         <label style={{fontWeight:700,marginBottom:10,display:"block",color:T.gold,fontSize:14}}>牌位名字</label>
-        <input className="ginput" style={{marginBottom:20}} placeholder="輸入名字或綽號..." value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleCreate()}/>
+        <input className="ginput" style={{marginBottom:16}} placeholder="輸入名字或綽號..." value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleCreate()}/>
+        <label style={{fontWeight:700,marginBottom:10,display:"block",color:T.gold,fontSize:14}}>暱稱（最多 3 字，遊戲顯示用）</label>
+        <input className="ginput" style={{marginBottom:20}} placeholder="可不填，將以原始名字代替" value={nickname} onChange={e=>setNickname(e.target.value.slice(0,3))} maxLength={3} onKeyDown={e=>e.key==="Enter"&&handleCreate()}/>
         <label style={{fontWeight:700,marginBottom:10,display:"block",color:T.gold,fontSize:14}}>上香數量</label>
         <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:24}}>
           {INCENSE_OPTIONS.map(n => <button key={n} className={`gbtn gbtn-sm ${count===n?"active":""}`} onClick={()=>setCount(n)}>{n} 柱</button>)}
         </div>
         {animating && <div style={{display:"flex",justifyContent:"center",marginBottom:20}}><CatPawIncense count={count} onDone={()=>{}}/></div>}
-        {name.trim() && <div style={{display:"flex",justifyContent:"center",marginBottom:20}}><TabletCard tablet={{id:"p",name:name.trim(),incenseCount:0}}/></div>}
+        {name.trim() && <div style={{display:"flex",justifyContent:"center",marginBottom:20}}><TabletCard tablet={{id:"p",name:name.trim(),nickname:nickname.trim().slice(0,3),incenseCount:0}}/></div>}
         <button className="gbtn gbtn-primary gbtn-lg gbtn-block" onClick={handleCreate} disabled={animating||!name.trim()}>🐾 立牌位並上香</button>
       </div>
     </div>
@@ -973,16 +1093,20 @@ function PunishmentView({tablets}) {
 function ScoreBoard({scores, title}) {
   if (!scores || scores.length === 0) return null;
   const top20 = scores.slice(0, 20);
+  const modeIcon = (m) => m === "whack" ? "🔨" : "🏹";
+  const modeLabel = (m) => m === "whack" ? "打牌位" : "神射手";
   return (
     <div className="gcard" style={{marginTop:14}}>
       <p style={{fontWeight:900,fontSize:15,color:T.gold,marginBottom:10}}>{title || "排行榜"}</p>
       <div style={{fontSize:13}}>
         {top20.map((s, i) => (
-          <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",borderBottom:i<top20.length-1?`1px solid ${T.border}`:"none"}}>
-            <span style={{color:i<3?T.gold:T.text,fontWeight:i<3?900:400}}>
-              {i===0?"🥇":i===1?"🥈":i===2?"🥉":(i+1)+"."} {s.playerName}
+          <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",borderBottom:i<top20.length-1?`1px solid ${T.border}`:"none",gap:8}}>
+            <span style={{color:i<3?T.gold:T.text,fontWeight:i<3?900:400,display:"flex",alignItems:"center",gap:6,minWidth:0,flex:1,overflow:"hidden"}}>
+              <span style={{flexShrink:0}}>{i===0?"🥇":i===1?"🥈":i===2?"🥉":(i+1)+"."}</span>
+              <span title={modeLabel(s.gameMode)} style={{flexShrink:0}}>{modeIcon(s.gameMode)}</span>
+              <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.playerName}</span>
             </span>
-            <span style={{color:T.cyan,fontWeight:700}}>{s.score} 分</span>
+            <span style={{color:T.cyan,fontWeight:700,flexShrink:0}}>{s.score} 分</span>
           </div>
         ))}
       </div>
@@ -1028,20 +1152,21 @@ function ArcheryGameView({tablets}) {
 
   const startGame = (name, lv) => {
     const useLv = lv || 1;
+    const carry = useLv === 1 ? 0 : totalScore;
     setLevel(useLv);
     setSelectedName(name);
     setGamePhase("playing");
-    setDisplayScore(0);
+    setDisplayScore(carry);
     setTimeLeft(GAME_TIME);
     setSaved(false);
-    setPlayerName("");
-    if (useLv === 1) setTotalScore(0);
+    if (useLv === 1) { setTotalScore(0); setPlayerName(""); }
     gameRef.current = {
       tablets: [],
       arrows: [],
       explosions: [],
       archerX: GAME_W / 2,
-      score: 0,
+      score: carry,
+      levelStart: carry,
       running: true,
       spawnTimer: 0,
       frameCount: 0,
@@ -1063,9 +1188,9 @@ function ArcheryGameView({tablets}) {
       await fetch(GAS_URL, {
         method: "POST",
         mode: "no-cors",
-        body: JSON.stringify({action:"saveScore",playerName:pName.trim(),score:score,targetName:selectedName,date:new Date().toISOString()}),
+        body: JSON.stringify({action:"saveScore",playerName:pName.trim(),score:score,targetName:selectedName,gameMode:"archery",date:new Date().toISOString()}),
       });
-      const newEntry = {playerName:pName.trim(), score:score, targetName:selectedName};
+      const newEntry = {playerName:pName.trim(), score:score, targetName:selectedName, gameMode:"archery"};
       setScoreList(prev => {
         const updated = [...prev, newEntry];
         updated.sort((a,b) => (b.score||0) - (a.score||0));
@@ -1154,7 +1279,8 @@ function ArcheryGameView({tablets}) {
       if (g.timeLeft <= 0) {
         g.running = false;
         setTimeLeft(0);
-        setTotalScore(prev => prev + g.score);
+        setTotalScore(g.score);
+        setDisplayScore(g.score);
         setGamePhase("gameover");
         return;
       }
@@ -1517,11 +1643,14 @@ function ArcheryGameView({tablets}) {
             <div>
               <p style={{color:T.text,fontSize:13,marginBottom:8,fontWeight:700}}>選擇目標（從第 1 關開始）</p>
               <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-                {tablets.map(t => (
-                  <button key={t.id} className="gbtn" onClick={() => startGame(t.name, 1)}>
-                    {t.name}
-                  </button>
-                ))}
+                {tablets.map(t => {
+                  const dn = (t.nickname && t.nickname.trim()) ? t.nickname.trim() : t.name;
+                  return (
+                    <button key={t.id} className="gbtn" onClick={() => startGame(dn, 1)}>
+                      {dn}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1540,16 +1669,15 @@ function ArcheryGameView({tablets}) {
       <div>
         <div className="sec-title">🏹 神射手</div>
         <div className="gcard" style={{textAlign:"center",padding:30}}>
-          <div style={{fontSize:48,marginBottom:12}}>💥</div>
+          <div style={{fontSize:48,marginBottom:12}}>{isFinal ? "🏆" : "💥"}</div>
           <p style={{fontWeight:900,fontSize:20,color:T.gold,marginBottom:4}}>第 {level} 關結束</p>
-          <p style={{color:T.text,fontSize:14,marginBottom:4}}>本關得分</p>
-          <p style={{fontSize:36,fontWeight:900,color:T.gold,marginBottom:4}}>{displayScore} 分</p>
-          {level > 1 && <p style={{color:T.cyan,fontSize:14,fontWeight:700,marginBottom:4}}>累計總分: {finalScore} 分</p>}
+          <p style={{color:T.text,fontSize:14,marginBottom:4}}>累計總分</p>
+          <p style={{fontSize:40,fontWeight:900,color:T.gold,marginBottom:4}}>{finalScore} 分</p>
           {finalScore >= highScore && finalScore > 0 && <p style={{color:T.cyan,fontWeight:700,fontSize:14,marginBottom:12}}>新紀錄！</p>}
           <p style={{color:T.textDim,fontSize:13,marginBottom:20}}>最高分: {highScore}</p>
           {canContinue && (
             <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap",marginBottom:20}}>
-              <button className="gbtn gbtn-danger gbtn-lg" onClick={() => startGame(selectedName, nextLv)}>挑戰第 {nextLv} 關</button>
+              <button className="gbtn gbtn-danger gbtn-lg" onClick={() => startGame(selectedName, nextLv)}>挑戰第 {nextLv} 關（分數續算）</button>
               <button className="gbtn" onClick={() => setGamePhase("settle")}>直接結算</button>
             </div>
           )}
@@ -1613,7 +1741,15 @@ function ArcheryGameView({tablets}) {
         <span style={{fontWeight:700,color:T.gold,fontSize:13}}>目標: {selectedName}</span>
         <span style={{fontWeight:900,fontSize:18,color:timeLeft<=5?T.red:timeLeft<=10?"#FFA500":T.cyan}}>{timeLeft}s</span>
         <span style={{fontWeight:900,fontSize:18,color:T.cyan}}>{displayScore} 分</span>
-        <button className="gbtn gbtn-sm" onClick={() => { if(gameRef.current) gameRef.current.running=false; setGamePhase("select"); setSelectedName(null) }}>結束</button>
+        <button className="gbtn gbtn-sm" onClick={() => {
+          const g = gameRef.current;
+          if (g) {
+            g.running = false;
+            setTotalScore(g.score);
+            setDisplayScore(g.score);
+          }
+          setGamePhase("gameover");
+        }}>結束</button>
       </div>
       <div className="gcard" style={{padding:0,overflow:"hidden",cursor:"crosshair",touchAction:"none"}}>
         <canvas
@@ -1628,6 +1764,368 @@ function ArcheryGameView({tablets}) {
         />
       </div>
       <p style={{textAlign:"center",marginTop:10,color:T.textDim,fontSize:12}}>點擊畫面射箭，滑動移動弓箭手，牌位揉到地面則遊戲結束</p>
+    </div>
+  );
+}
+
+/* ================================================================
+   Whack Tablet Game View - Memorial Whack-a-Mole
+   ================================================================ */
+function WhackTabletView({tablets}) {
+  const [selectedName, setSelectedName] = useState(null);
+  const [gamePhase, setGamePhase] = useState("select");
+  const [displayScore, setDisplayScore] = useState(0);
+  const [highScore, setHighScore] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(30);
+  const [playerName, setPlayerName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [scoreList, setScoreList] = useState([]);
+  const [level, setLevel] = useState(1);
+  const [totalScore, setTotalScore] = useState(0);
+  const [levelGain, setLevelGain] = useState(0);
+  const [activeCells, setActiveCells] = useState({});
+  const [floats, setFloats] = useState([]);
+  const gameRef = useRef(null);
+
+  const GAME_TIME = 30;
+
+  /* 每雙數關速度略升一階：L1=base, L2/L3=fast, L4/L5=faster；L3 起需 2 擊；L4 起出現炸彈 */
+  const LV = {
+    1: { grid:3, spawnMin:1300, spawnMax:1900, life:2200, maxActive:2, hp:1, bombChance:0 },
+    2: { grid:3, spawnMin:900,  spawnMax:1400, life:1700, maxActive:3, hp:1, bombChance:0 },
+    3: { grid:4, spawnMin:900,  spawnMax:1400, life:1700, maxActive:3, hp:2, bombChance:0 },
+    4: { grid:4, spawnMin:700,  spawnMax:1100, life:1500, maxActive:4, hp:2, bombChance:0.13 },
+    5: { grid:5, spawnMin:700,  spawnMax:1100, life:1500, maxActive:4, hp:2, bombChance:0.13 },
+  };
+
+  const fetchScores = useCallback(async () => {
+    try {
+      const r = await fetch(GAS_URL + "?action=scores", {redirect:"follow"});
+      const data = await r.json();
+      if (Array.isArray(data)) {
+        setScoreList(data);
+        if (data.length > 0) setHighScore(data[0].score || 0);
+      }
+    } catch(e) { console.warn("Fetch scores failed:", e.message); }
+  }, []);
+
+  useEffect(() => { fetchScores(); }, []);
+
+  const startGame = (name, lv) => {
+    const useLv = lv || 1;
+    // 第 2 關以後沿用前一關累計分數，第 1 關歸零
+    const carry = useLv === 1 ? 0 : totalScore;
+    setLevel(useLv);
+    setSelectedName(name);
+    setGamePhase("playing");
+    setDisplayScore(carry);
+    setTimeLeft(GAME_TIME);
+    setSaved(false);
+    setLevelGain(0);
+    if (useLv === 1) { setTotalScore(0); setPlayerName(""); }
+    setActiveCells({});
+    setFloats([]);
+
+    gameRef.current = {
+      running: true,
+      score: carry,
+      levelStart: carry,
+      level: useLv,
+      cells: {},
+      spawnAt: performance.now() + 200,
+      startTime: performance.now(),
+      lastUI: 0,
+      keyCount: 0,
+      normalSpawnCount: 0,
+      targetName: name,
+    };
+  };
+
+  const saveScore = async (pName, score) => {
+    if (!pName.trim() || saving) return;
+    setSaving(true);
+    try {
+      await fetch(GAS_URL, {
+        method: "POST",
+        mode: "no-cors",
+        body: JSON.stringify({
+          action: "saveScore",
+          playerName: pName.trim(),
+          score: score,
+          targetName: selectedName || "隨機",
+          gameMode: "whack",
+          date: new Date().toISOString()
+        }),
+      });
+      const newEntry = {playerName:pName.trim(), score:score, targetName:(selectedName||"隨機"), gameMode:"whack"};
+      setScoreList(prev => {
+        const updated = [...prev, newEntry];
+        updated.sort((a,b) => (b.score||0) - (a.score||0));
+        return updated;
+      });
+      setSaved(true);
+      setTimeout(() => fetchScores(), 3000);
+    } catch(e) {
+      console.warn("Whack score save failed:", e.message);
+    }
+    setSaving(false);
+  };
+
+  const playHitSound = (good) => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = good ? "sine" : "sawtooth";
+      o.frequency.setValueAtTime(good ? 660 : 140, ctx.currentTime);
+      o.frequency.exponentialRampToValueAtTime(good ? 220 : 60, ctx.currentTime + 0.15);
+      g.gain.setValueAtTime(0.3, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.18);
+      o.start(); o.stop(ctx.currentTime + 0.2);
+    } catch(e){}
+  };
+
+  const spawnFloat = (idx, points) => {
+    const id = Math.random().toString(36).slice(2);
+    setFloats(prev => [...prev, {id, idx, points}]);
+    setTimeout(() => setFloats(prev => prev.filter(f => f.id !== id)), 600);
+  };
+
+  const handleHit = (idx, e) => {
+    if (e) e.stopPropagation();
+    const g = gameRef.current;
+    if (!g || !g.running) return;
+    const cell = g.cells[idx];
+    if (!cell) return;
+
+    cell.hp -= 1;
+    let points = 0;
+    let killed = false;
+
+    if (cell.type === "bomb") {
+      points = -10; killed = true;
+    } else {
+      if (g.level <= 2) { points = 10; killed = true; }
+      else {
+        if (cell.hp <= 0) { points = 20; killed = true; }
+        else points = 5;
+      }
+    }
+
+    g.score = Math.max(0, g.score + points);
+    setDisplayScore(g.score);
+    if (killed) delete g.cells[idx];
+    setActiveCells({...g.cells});
+    spawnFloat(idx, points);
+    playHitSound(points > 0);
+  };
+
+  useEffect(() => {
+    if (gamePhase !== "playing") return;
+    const g = gameRef.current;
+    if (!g) return;
+
+    const tick = () => {
+      if (!g.running) return;
+      const now = performance.now();
+      const elapsed = (now - g.startTime) / 1000;
+      const tLeft = Math.max(0, GAME_TIME - elapsed);
+
+      if (now - g.lastUI > 100) {
+        g.lastUI = now;
+        setTimeLeft(Math.ceil(tLeft));
+      }
+
+      if (tLeft <= 0) {
+        g.running = false;
+        const gain = g.score - g.levelStart;
+        setLevelGain(gain);
+        setTotalScore(g.score);
+        setDisplayScore(g.score);
+        setGamePhase("gameover");
+        return;
+      }
+
+      const cfg = LV[g.level];
+      const cellCount = cfg.grid * cfg.grid;
+
+      let changed = false;
+      for (const idx of Object.keys(g.cells)) {
+        if (g.cells[idx].expireAt <= now) {
+          delete g.cells[idx];
+          changed = true;
+        }
+      }
+
+      const activeCount = Object.keys(g.cells).length;
+      if (now >= g.spawnAt && activeCount < cfg.maxActive) {
+        const empty = [];
+        for (let i = 0; i < cellCount; i++) if (!g.cells[i]) empty.push(i);
+        if (empty.length > 0) {
+          const idx = empty[Math.floor(Math.random() * empty.length)];
+          const isBomb = cfg.bombChance > 0 && Math.random() < cfg.bombChance;
+          let nm;
+          if (g.targetName) nm = g.targetName;
+          else if (tablets.length > 0) {
+            const rt = tablets[Math.floor(Math.random() * tablets.length)];
+            nm = (rt.nickname && rt.nickname.trim()) ? rt.nickname.trim() : rt.name;
+          } else nm = "無名";
+          g.cells[idx] = {
+            type: isBomb ? "bomb" : "normal",
+            hp: isBomb ? 1 : cfg.hp,
+            maxHp: isBomb ? 1 : cfg.hp,
+            name: isBomb ? "💣" : nm,
+            expireAt: now + cfg.life,
+            key: ++g.keyCount,
+          };
+          changed = true;
+        }
+        const range = cfg.spawnMax - cfg.spawnMin;
+        const baseDelay = cfg.spawnMin + Math.random() * range;
+        g.spawnAt = now + baseDelay;
+      }
+
+      if (changed) setActiveCells({...g.cells});
+      g.frameId = requestAnimationFrame(tick);
+    };
+
+    g.frameId = requestAnimationFrame(tick);
+    return () => {
+      g.running = false;
+      if (g.frameId) cancelAnimationFrame(g.frameId);
+    };
+  }, [gamePhase]);
+
+  if (gamePhase === "select") {
+    return (
+      <div>
+        <div className="sec-title">🔨 打牌位</div>
+        <div className="gcard">
+          <p style={{color:T.textDim,marginBottom:10,fontSize:14}}>選擇目標牌位（可指定或每次隨機），開始打牌位（每關 30 秒）</p>
+          <div style={{background:"rgba(255,255,255,0.04)",borderRadius:8,padding:"10px 12px",marginBottom:16,fontSize:12,lineHeight:"1.8",color:T.textDim}}>
+            <p style={{color:T.gold,fontWeight:700,marginBottom:4,fontSize:13}}>遊戲規則</p>
+            <p>第 1 關：3x3 棋盤，敲中即破（+10 分）</p>
+            <p>第 2 關：3x3 棋盤，敲中即破（+10 分）；速度略升，先熟悉節奏</p>
+            <p>第 3 關：4x4 棋盤，需敲擊 2 次（首擊 +5，擊破 +20）；牌位首擊後會變色裂痕</p>
+            <p>第 4 關：4x4 棋盤，2 擊規則同第 3 關；速度再略升，開始出現炸彈</p>
+            <p>第 5 關：5x5 棋盤，規則同第 4 關，炸彈仍會出現</p>
+            <p style={{color:"#FF6666"}}>💣 炸彈：敲到立即扣 10 分，請避開</p>
+            <p style={{marginTop:6,color:T.text}}>每雙數關速度略升，關內速度固定。每關結束分數會持續累計到下一關，可隨時儲存累計總分到排行榜（神射手與打牌位共用）。</p>
+          </div>
+          {highScore > 0 && <p style={{color:T.cyan,fontWeight:700,marginBottom:16,fontSize:14}}>最高分: {highScore}</p>}
+          <div>
+            <p style={{color:T.text,fontSize:13,marginBottom:8,fontWeight:700}}>選擇目標（從第 1 關開始）</p>
+            <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+              <button className="gbtn gbtn-primary" onClick={() => startGame(null, 1)}>🎲 每次隨機</button>
+              {tablets.map(t => (
+                <button key={t.id} className="gbtn" onClick={() => startGame(t.name, 1)}>
+                  {t.name}
+                </button>
+              ))}
+            </div>
+            {tablets.length === 0 && (
+              <p style={{color:T.textDim,fontSize:12,marginTop:8}}>尚無牌位，將以「無名」顯示</p>
+            )}
+          </div>
+        </div>
+        <ScoreBoard scores={scoreList} title="排行榜 TOP 20"/>
+      </div>
+    );
+  }
+
+  if (gamePhase === "gameover") {
+    const finalScore = totalScore;
+    const canContinue = level < 5;
+    const nextLv = level + 1;
+    const isFinal = level === 5;
+    return (
+      <div>
+        <div className="sec-title">🔨 打牌位</div>
+        <div className="gcard" style={{textAlign:"center",padding:30}}>
+          <div style={{fontSize:48,marginBottom:12}}>{isFinal ? "🏆" : "💥"}</div>
+          <p style={{fontWeight:900,fontSize:20,color:T.gold,marginBottom:4}}>第 {level} 關結束</p>
+          <p style={{color:T.text,fontSize:13,marginBottom:6}}>本關 +{levelGain} 分</p>
+          <p style={{color:T.text,fontSize:14,marginBottom:4}}>累計總分</p>
+          <p style={{fontSize:40,fontWeight:900,color:T.gold,marginBottom:4}}>{finalScore} 分</p>
+          {finalScore >= highScore && finalScore > 0 && <p style={{color:T.cyan,fontWeight:700,fontSize:14,marginBottom:8}}>新紀錄！</p>}
+          <p style={{color:T.textDim,fontSize:13,marginBottom:18}}>最高分: {highScore}</p>
+
+          {canContinue && (
+            <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap",marginBottom:16}}>
+              <button className="gbtn gbtn-danger gbtn-lg" onClick={() => startGame(selectedName, nextLv)}>挑戰第 {nextLv} 關（分數續算）</button>
+            </div>
+          )}
+
+          <div style={{borderTop:`1px solid ${T.border}`,paddingTop:16,marginTop:8}}>
+            {!saved ? (
+              <div style={{marginBottom:14}}>
+                <p style={{color:T.text,fontSize:13,marginBottom:8}}>儲存累計總分到排行榜</p>
+                <div style={{display:"flex",gap:8,justifyContent:"center",alignItems:"center",flexWrap:"wrap"}}>
+                  <input className="ginput" value={playerName} onChange={e=>setPlayerName(e.target.value)} placeholder="你的名字" style={{maxWidth:160,textAlign:"center"}} maxLength={10}/>
+                  <button className="gbtn gbtn-primary" onClick={()=>{ setHighScore(prev=>Math.max(prev,finalScore)); saveScore(playerName,finalScore)}} disabled={saving||!playerName.trim()||finalScore<=0}>{saving?"儲存中...":"儲存成績"}</button>
+                </div>
+              </div>
+            ) : (
+              <p style={{color:T.cyan,fontWeight:700,fontSize:13,marginBottom:14}}>成績已儲存 ✓</p>
+            )}
+            <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
+              <button className="gbtn gbtn-primary" onClick={() => startGame(selectedName, 1)}>重新挑戰（從第 1 關）</button>
+              <button className="gbtn" onClick={() => { setGamePhase("select"); setSelectedName(null) }}>換目標</button>
+            </div>
+          </div>
+        </div>
+        <ScoreBoard scores={scoreList} title="排行榜 TOP 20"/>
+      </div>
+    );
+  }
+
+  const targetLabel = selectedName || "🎲 隨機";
+  return (
+    <div>
+      <div className="sec-title">🔨 打牌位</div>
+      <div className="gcard" style={{marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8,padding:"10px 16px"}}>
+        <span style={{fontWeight:700,color:T.gold,fontSize:13}}>第 {level} 關 · 目標: {targetLabel}</span>
+        <span style={{fontWeight:900,fontSize:18,color:timeLeft<=5?T.red:timeLeft<=10?"#FFA500":T.cyan}}>{timeLeft}s</span>
+        <span style={{fontWeight:900,fontSize:18,color:T.cyan}}>{displayScore} 分</span>
+        <button className="gbtn gbtn-sm" onClick={() => {
+          const g = gameRef.current;
+          if (g) {
+            g.running = false;
+            const gain = g.score - g.levelStart;
+            setLevelGain(gain);
+            setTotalScore(g.score);
+            setDisplayScore(g.score);
+          }
+          setGamePhase("gameover");
+        }}>結束</button>
+      </div>
+      <div className={`whack-board grid-${LV[level].grid}`}>
+        {Array.from({length: LV[level].grid * LV[level].grid}).map((_, idx) => {
+          const cell = activeCells[idx];
+          const cellFloats = floats.filter(f => f.idx === idx);
+          return (
+            <div className="whack-cell" key={idx}>
+              <div className="whack-hole"/>
+              {cell && (
+                <div
+                  key={cell.key}
+                  className={`whack-tablet ${cell.type === "bomb" ? "bomb" : ""} ${cell.type !== "bomb" && cell.hp < cell.maxHp ? "wounded" : ""}`}
+                  onPointerDown={(e) => handleHit(idx, e)}
+                >
+                  <span className="whack-tablet-name">{(cell.name || "").slice(0, 3)}</span>
+                </div>
+              )}
+              {cellFloats.map(f => (
+                <div key={f.id} className="whack-float" style={{color: f.points > 0 ? "#FFFFFF" : "#FF6666"}}>
+                  {f.points > 0 ? `+${f.points}` : f.points}
+                </div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+      <p style={{textAlign:"center",marginTop:10,color:T.textDim,fontSize:12}}>點擊冒出的牌位即可敲擊，避開 💣 炸彈</p>
     </div>
   );
 }
@@ -1701,7 +2199,7 @@ function App() {
       let d;
       try { d = JSON.parse(text) } catch(pe){ addToast("回傳格式錯誤（非 JSON）","error"); console.warn("GAS response:",text.slice(0,200)); return }
       if(Array.isArray(d)){
-        const loaded = d.map((row,i)=>({id:row.id||`gas-${i}`,name:row.name||row[0]||"",incenseCount:parseInt(row.incenseCount||row[1]||0,10),createdAt:row.createdAt||row[2]||new Date().toISOString()})).filter(t=>t.name);
+        const loaded = d.map((row,i)=>({id:row.id||`gas-${i}`,name:row.name||row[0]||"",nickname:row.nickname||row[3]||"",incenseCount:parseInt(row.incenseCount||row[1]||0,10),createdAt:row.createdAt||row[2]||new Date().toISOString()})).filter(t=>t.name);
         setTablets(loaded);setConnected(true);
         addToast("連線成功！已載入 "+loaded.length+" 個牌位","info");
       } else { setConnected(true); addToast("連線成功！","info") }
@@ -1713,8 +2211,8 @@ function App() {
     try { await fetch(gasUrl.trim(),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tablets:updated}),mode:"no-cors"}) } catch(e){}
   };
 
-  const handleCreate = (name,count) => {
-    const nt = {id:`t-${Date.now()}`,name,incenseCount:count,createdAt:new Date().toISOString()};
+  const handleCreate = (name,nickname,count) => {
+    const nt = {id:`t-${Date.now()}`,name,nickname:nickname||"",incenseCount:count,createdAt:new Date().toISOString()};
     const up = [...tablets,nt]; setTablets(up); syncToGas(up);
     addToast("「"+name+"」牌位已立，上了 "+count+" 柱香");
   };
@@ -1734,6 +2232,17 @@ function App() {
     addToast("「"+t.name+"」牌位已移除","info");
   };
 
+  const handleUpdateNickname = (id, nickname) => {
+    const trimmed = (nickname || "").trim().slice(0, 3);
+    const t = tablets.find(x=>x.id===id);
+    if(!t) return;
+    const up = tablets.map(x=>x.id===id?{...x,nickname:trimmed}:x);
+    setTablets(up); syncToGas(up);
+    setSelectedTablet(prev => prev && prev.id===id ? {...prev, nickname:trimmed} : prev);
+    if (trimmed) addToast("「"+t.name+"」暱稱已設為「"+trimmed+"」");
+    else addToast("「"+t.name+"」暱稱已清除","info");
+  };
+
   const renderView = () => {
     switch(view){
       case "hall": return <HallView tablets={tablets} onSelectTablet={setSelectedTablet}/>;
@@ -1742,6 +2251,7 @@ function App() {
       case "leaderboard": return <LeaderboardView tablets={tablets}/>;
       case "punishments": return <PunishmentView tablets={tablets}/>;
       case "archery": return <ArcheryGameView tablets={tablets}/>;
+      case "whack": return <WhackTabletView tablets={tablets}/>;
       case "settings": return <SettingsView gasUrl={gasUrl} onGasUrlChange={setGasUrl} onConnect={()=>doConnect(gasUrl)} connected={connected} tablets={tablets}/>;
       default: return null;
     }
@@ -1779,6 +2289,7 @@ function App() {
         <EnlargedTabletView tablet={selectedTablet} onClose={()=>setSelectedTablet(null)}
           onAddIncense={(id,count) => { handleAddIncense(id,count); setSelectedTablet(prev=>prev?{...prev,incenseCount:prev.incenseCount+count}:null) }}
           onDelete={handleDelete}
+          onUpdateNickname={handleUpdateNickname}
         />
       )}
 
