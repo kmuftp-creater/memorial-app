@@ -508,6 +508,22 @@ body{
   box-shadow:0 0 16px rgba(255,30,30,0.7),inset 0 0 10px rgba(0,0,0,0.6);
   animation:whackPop 0.18s cubic-bezier(0.18,0.89,0.32,1.28) forwards,bombPulse 0.7s ease-in-out infinite alternate;
 }
+
+/* 發光牌位（+50 分） */
+.whack-tablet.glow{
+  background:linear-gradient(180deg,#1a8a8a 0%,#2dd5d5 30%,#5fffe5 50%,#2dd5d5 70%,#1a8a8a 100%);
+  border:2px solid #FFFFFF;
+  box-shadow:0 0 20px rgba(0,255,229,0.9),0 0 40px rgba(0,200,200,0.5),inset 0 0 10px rgba(255,255,255,0.3);
+  animation:whackPop 0.18s cubic-bezier(0.18,0.89,0.32,1.28) forwards,glowPulse 0.85s ease-in-out infinite alternate;
+}
+.whack-tablet.glow .whack-tablet-name{
+  color:#FFFFFF;
+  text-shadow:0 0 10px #00FFE5,0 0 20px rgba(0,255,229,0.6),-1px -1px 0 #003844,1px -1px 0 #003844,-1px 1px 0 #003844,1px 1px 0 #003844;
+}
+@keyframes glowPulse{
+  from{box-shadow:0 0 14px rgba(0,255,229,0.7),0 0 28px rgba(0,200,200,0.4),inset 0 0 8px rgba(255,255,255,0.3)}
+  to{box-shadow:0 0 28px rgba(0,255,229,1),0 0 56px rgba(0,255,229,0.8),inset 0 0 14px rgba(255,255,255,0.5)}
+}
 .whack-tablet.bomb .whack-tablet-name{
   writing-mode:horizontal-tb;letter-spacing:0;
   text-shadow:0 0 10px #ff0000,0 0 4px #000;
@@ -531,6 +547,9 @@ body{
 .whack-flash.bomb{
   background:radial-gradient(circle,rgba(255,240,180,1) 0%,rgba(255,120,30,0.9) 40%,rgba(180,30,0,0.5) 75%,transparent 100%);
 }
+.whack-flash.glow{
+  background:radial-gradient(circle,rgba(255,255,255,1) 0%,rgba(120,255,240,0.95) 30%,rgba(0,200,220,0.5) 70%,transparent 100%);
+}
 @keyframes whackFlash{
   0%{width:8px;height:8px;opacity:1}
   60%{opacity:0.85}
@@ -547,6 +566,10 @@ body{
 .whack-shard.bomb{
   background:radial-gradient(circle at 50% 35%,#5a5a5a 0%,#1a1a1a 80%,#000 100%);
   border-color:#ff5050;box-shadow:0 0 8px rgba(255,80,30,0.7);
+}
+.whack-shard.glow{
+  background:linear-gradient(180deg,#5fffe5 0%,#2dd5d5 60%,#1a8a8a 100%);
+  border-color:#FFFFFF;box-shadow:0 0 10px rgba(0,255,229,0.95);
 }
 .whack-shard-0{--dx:-28px;--dy:-24px;--rot:-130deg}
 .whack-shard-1{--dx:0px;--dy:-32px;--rot:-30deg}
@@ -1194,6 +1217,7 @@ function ArcheryGameView({tablets}) {
   const [saved, setSaved] = useState(false);
   const [scoreList, setScoreList] = useState([]);
   const [level, setLevel] = useState(1);
+  const [pendingAction, setPendingAction] = useState(null);
   const canvasRef = useRef(null);
   const gameRef = useRef(null);
 
@@ -1228,6 +1252,7 @@ function ArcheryGameView({tablets}) {
     setDisplayScore(carry);
     setTimeLeft(GAME_TIME);
     setSaved(false);
+    setPendingAction(null);
     if (useLv === 1) { setTotalScore(0); setPlayerName(""); }
     gameRef.current = {
       tablets: [],
@@ -1750,22 +1775,44 @@ function ArcheryGameView({tablets}) {
               <button className="gbtn" onClick={() => setGamePhase("settle")}>直接結算</button>
             </div>
           )}
-          {isFinal && (
+          {!canContinue && (
             <div style={{marginBottom:20}}>
               {!saved && (
                 <div style={{marginBottom:16}}>
                   <p style={{color:T.text,fontSize:13,marginBottom:8}}>輸入名字記錄成績</p>
                   <div style={{display:"flex",gap:8,justifyContent:"center",alignItems:"center",flexWrap:"wrap"}}>
                     <input className="ginput" value={playerName} onChange={e=>setPlayerName(e.target.value)} placeholder="你的名字" style={{maxWidth:160,textAlign:"center"}} maxLength={10}/>
-                    <button className="gbtn gbtn-primary" onClick={()=>{ setHighScore(prev=>Math.max(prev,finalScore)); saveScore(playerName,finalScore)}} disabled={saving||!playerName.trim()}>{saving?"儲存中...":"儲存成績"}</button>
+                    <button className="gbtn gbtn-primary" onClick={()=>{ setHighScore(prev=>Math.max(prev,finalScore)); saveScore(playerName,finalScore)}} disabled={saving||!playerName.trim()||finalScore<=0}>{saving?"儲存中...":"儲存成績"}</button>
                   </div>
+                  {finalScore > 0 && <p style={{color:"#FFA500",fontSize:11,marginTop:8}}>⚠ 未儲存將遺失分數，請先輸入名字儲存</p>}
                 </div>
               )}
               {saved && <p style={{color:T.cyan,fontWeight:700,fontSize:13,marginBottom:16}}>成績已儲存</p>}
-              <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
-                <button className="gbtn gbtn-primary gbtn-lg" onClick={() => startGame(selectedName, 1)}>重新挑戰</button>
-                <button className="gbtn" onClick={() => { setGamePhase("select"); setSelectedName(null) }}>換目標</button>
-              </div>
+              {pendingAction ? (
+                <div style={{background:"rgba(255,68,68,0.12)",border:`1px solid rgba(255,68,68,0.4)`,borderRadius:10,padding:14,marginBottom:8}}>
+                  <p style={{color:T.red,fontWeight:700,fontSize:13,marginBottom:10}}>⚠ 尚未儲存累計 {finalScore} 分，捨棄重來？</p>
+                  <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
+                    <button className="gbtn gbtn-danger" onClick={() => {
+                      const a = pendingAction;
+                      setPendingAction(null);
+                      if (a === "restart") startGame(selectedName, 1);
+                      else if (a === "change") { setGamePhase("select"); setSelectedName(null); }
+                    }}>捨棄並繼續</button>
+                    <button className="gbtn" onClick={() => setPendingAction(null)}>取消</button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
+                  <button className="gbtn gbtn-primary gbtn-lg" onClick={() => {
+                    if (!saved && finalScore > 0) setPendingAction("restart");
+                    else startGame(selectedName, 1);
+                  }}>重新挑戰</button>
+                  <button className="gbtn" onClick={() => {
+                    if (!saved && finalScore > 0) setPendingAction("change");
+                    else { setGamePhase("select"); setSelectedName(null); }
+                  }}>換目標</button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1788,15 +1835,37 @@ function ArcheryGameView({tablets}) {
               <p style={{color:T.text,fontSize:13,marginBottom:8}}>輸入名字記錄成績</p>
               <div style={{display:"flex",gap:8,justifyContent:"center",alignItems:"center",flexWrap:"wrap"}}>
                 <input className="ginput" value={playerName} onChange={e=>setPlayerName(e.target.value)} placeholder="你的名字" style={{maxWidth:160,textAlign:"center"}} maxLength={10}/>
-                <button className="gbtn gbtn-primary" onClick={()=>{ setHighScore(prev=>Math.max(prev,finalScore)); saveScore(playerName,finalScore)}} disabled={saving||!playerName.trim()}>{saving?"儲存中...":"儲存成績"}</button>
+                <button className="gbtn gbtn-primary" onClick={()=>{ setHighScore(prev=>Math.max(prev,finalScore)); saveScore(playerName,finalScore)}} disabled={saving||!playerName.trim()||finalScore<=0}>{saving?"儲存中...":"儲存成績"}</button>
               </div>
+              {finalScore > 0 && <p style={{color:"#FFA500",fontSize:11,marginTop:8}}>⚠ 未儲存將遺失分數，請先輸入名字儲存</p>}
             </div>
           )}
           {saved && <p style={{color:T.cyan,fontWeight:700,fontSize:13,marginBottom:16}}>成績已儲存</p>}
-          <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
-            <button className="gbtn gbtn-primary gbtn-lg" onClick={() => startGame(selectedName, 1)}>重新挑戰</button>
-            <button className="gbtn" onClick={() => { setGamePhase("select"); setSelectedName(null) }}>換目標</button>
-          </div>
+          {pendingAction ? (
+            <div style={{background:"rgba(255,68,68,0.12)",border:`1px solid rgba(255,68,68,0.4)`,borderRadius:10,padding:14}}>
+              <p style={{color:T.red,fontWeight:700,fontSize:13,marginBottom:10}}>⚠ 尚未儲存累計 {finalScore} 分，捨棄重來？</p>
+              <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
+                <button className="gbtn gbtn-danger" onClick={() => {
+                  const a = pendingAction;
+                  setPendingAction(null);
+                  if (a === "restart") startGame(selectedName, 1);
+                  else if (a === "change") { setGamePhase("select"); setSelectedName(null); }
+                }}>捨棄並繼續</button>
+                <button className="gbtn" onClick={() => setPendingAction(null)}>取消</button>
+              </div>
+            </div>
+          ) : (
+            <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
+              <button className="gbtn gbtn-primary gbtn-lg" onClick={() => {
+                if (!saved && finalScore > 0) setPendingAction("restart");
+                else startGame(selectedName, 1);
+              }}>重新挑戰</button>
+              <button className="gbtn" onClick={() => {
+                if (!saved && finalScore > 0) setPendingAction("change");
+                else { setGamePhase("select"); setSelectedName(null); }
+              }}>換目標</button>
+            </div>
+          )}
         </div>
         <ScoreBoard scores={scoreList} title="排行榜 TOP 20"/>
       </div>
@@ -1858,17 +1927,21 @@ function WhackTabletView({tablets}) {
   const [explosions, setExplosions] = useState([]);
   const [sparks, setSparks] = useState([]);
   const [shaking, setShaking] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
   const gameRef = useRef(null);
 
   const GAME_TIME = 30;
 
-  /* 每雙數關速度略升一階：L1=base, L2/L3=fast, L4/L5=faster；L3 起需 2 擊；L4 起出現炸彈 */
+  /* 每雙數關速度略升一階；L1 為 1 擊熱身關，L2 起 2 擊（首擊 +5、擊破 +20）；L4 起出現炸彈
+     bombGuard / glowGuard: 每 N 個牌位至少 1 個（保底）；
+     bombChance / glowChance: 額外隨機機率
+     發光牌位 = 1 擊 +50；炸彈 = 1 擊 -10 */
   const LV = {
-    1: { grid:3, spawnMin:1300, spawnMax:1900, life:2200, maxActive:2, hp:1, bombChance:0 },
-    2: { grid:3, spawnMin:900,  spawnMax:1400, life:1700, maxActive:3, hp:1, bombChance:0 },
-    3: { grid:4, spawnMin:900,  spawnMax:1400, life:1700, maxActive:3, hp:2, bombChance:0 },
-    4: { grid:4, spawnMin:700,  spawnMax:1100, life:1500, maxActive:4, hp:2, bombChance:0.13 },
-    5: { grid:5, spawnMin:700,  spawnMax:1100, life:1500, maxActive:4, hp:2, bombChance:0.13 },
+    1: { grid:3, spawnMin:1100, spawnMax:1700, life:2000, maxActive:2, hp:1, bombChance:0,    bombGuard:0, glowChance:0,    glowGuard:0 },
+    2: { grid:3, spawnMin:750,  spawnMax:1200, life:1500, maxActive:3, hp:2, bombChance:0,    bombGuard:0, glowChance:0,    glowGuard:0 },
+    3: { grid:4, spawnMin:750,  spawnMax:1200, life:1500, maxActive:3, hp:2, bombChance:0,    bombGuard:0, glowChance:0.05, glowGuard:0 },
+    4: { grid:4, spawnMin:650,  spawnMax:1050, life:1400, maxActive:4, hp:2, bombChance:0.08, bombGuard:8, glowChance:0.05, glowGuard:11 },
+    5: { grid:5, spawnMin:650,  spawnMax:1050, life:1400, maxActive:4, hp:2, bombChance:0.12, bombGuard:6, glowChance:0.05, glowGuard:5 },
   };
 
   const fetchScores = useCallback(async () => {
@@ -1901,6 +1974,7 @@ function WhackTabletView({tablets}) {
     setExplosions([]);
     setSparks([]);
     setShaking(false);
+    setPendingAction(null);
 
     gameRef.current = {
       running: true,
@@ -1996,8 +2070,10 @@ function WhackTabletView({tablets}) {
 
     if (cell.type === "bomb") {
       points = -10; killed = true;
+    } else if (cell.type === "glow") {
+      points = 50; killed = true;
     } else {
-      if (g.level <= 2) { points = 10; killed = true; }
+      if (g.level === 1) { points = 10; killed = true; }
       else {
         if (cell.hp <= 0) { points = 20; killed = true; }
         else points = 5;
@@ -2008,7 +2084,7 @@ function WhackTabletView({tablets}) {
     setDisplayScore(g.score);
     if (killed) {
       delete g.cells[idx];
-      spawnExplosion(idx, cell.type === "bomb" ? "bomb" : "normal");
+      spawnExplosion(idx, cell.type);
     } else {
       spawnSpark(idx);
     }
@@ -2060,7 +2136,17 @@ function WhackTabletView({tablets}) {
         for (let i = 0; i < cellCount; i++) if (!g.cells[i]) empty.push(i);
         if (empty.length > 0) {
           const idx = empty[Math.floor(Math.random() * empty.length)];
-          const isBomb = cfg.bombChance > 0 && Math.random() < cfg.bombChance;
+          g.normalSpawnCount = (g.normalSpawnCount || 0) + 1;
+          const c = g.normalSpawnCount;
+          const glowGuardHit = cfg.glowGuard > 0 && c % cfg.glowGuard === 0;
+          const bombGuardHit = cfg.bombGuard > 0 && c % cfg.bombGuard === 0;
+          let cellType = "normal";
+          if (glowGuardHit) cellType = "glow";
+          else if (bombGuardHit) cellType = "bomb";
+          else if (cfg.glowChance > 0 && Math.random() < cfg.glowChance) cellType = "glow";
+          else if (cfg.bombChance > 0 && Math.random() < cfg.bombChance) cellType = "bomb";
+          const isBomb = cellType === "bomb";
+          const isGlow = cellType === "glow";
           let nm;
           if (g.targetName) nm = g.targetName;
           else if (tablets.length > 0) {
@@ -2068,9 +2154,9 @@ function WhackTabletView({tablets}) {
             nm = (rt.nickname && rt.nickname.trim()) ? rt.nickname.trim() : rt.name;
           } else nm = "無名";
           g.cells[idx] = {
-            type: isBomb ? "bomb" : "normal",
-            hp: isBomb ? 1 : cfg.hp,
-            maxHp: isBomb ? 1 : cfg.hp,
+            type: cellType,
+            hp: (isBomb || isGlow) ? 1 : cfg.hp,
+            maxHp: (isBomb || isGlow) ? 1 : cfg.hp,
             name: isBomb ? "💣" : nm,
             expireAt: now + cfg.life,
             key: ++g.keyCount,
@@ -2101,12 +2187,14 @@ function WhackTabletView({tablets}) {
           <p style={{color:T.textDim,marginBottom:10,fontSize:14}}>選擇目標牌位（可指定或每次隨機），開始打牌位（每關 30 秒）</p>
           <div style={{background:"rgba(255,255,255,0.04)",borderRadius:8,padding:"10px 12px",marginBottom:16,fontSize:12,lineHeight:"1.8",color:T.textDim}}>
             <p style={{color:T.gold,fontWeight:700,marginBottom:4,fontSize:13}}>遊戲規則</p>
-            <p>第 1 關：3x3 棋盤，敲中即破（+10 分）</p>
-            <p>第 2 關：3x3 棋盤，敲中即破（+10 分）；速度略升，先熟悉節奏</p>
-            <p>第 3 關：4x4 棋盤，需敲擊 2 次（首擊 +5，擊破 +20）；牌位首擊後會變色裂痕</p>
-            <p>第 4 關：4x4 棋盤，2 擊規則同第 3 關；速度再略升，開始出現炸彈</p>
-            <p>第 5 關：5x5 棋盤，規則同第 4 關，炸彈仍會出現</p>
+            <p>第 1 關：3x3 棋盤，敲中即破（+10 分）；熱身關</p>
+            <p>第 2 關：3x3 棋盤，需敲擊 2 次（首擊 +5、擊破 +20）；速度略升</p>
+            <p>第 3 關：4x4 棋盤，2 擊同第 2 關；首擊後變色裂痕，5% 機率發光牌位</p>
+            <p>第 4 關：4x4 棋盤，2 擊；速度再略升，每 8 個保底 1 個炸彈（外加 8% 隨機），每 11 個保底 1 個發光（外加 5% 隨機）</p>
+            <p>第 5 關：5x5 棋盤，規則同第 4 關，每 6 個至少 1 個炸彈；發光每 5 個保底 1 個（外加 5% 隨機）</p>
             <p style={{color:"#FF6666"}}>💣 炸彈：敲到立即扣 10 分，請避開</p>
+            <p style={{color:"#5fffe5"}}>✨ 發光牌位：青色脈衝，敲一下 +50 分</p>
+            <p style={{marginTop:6,color:T.gold}}>5 關全破預估累計總分 ~3400-3500 分</p>
             <p style={{marginTop:6,color:T.text}}>每雙數關速度略升，關內速度固定。每關結束分數會持續累計到下一關，可隨時儲存累計總分到排行榜（神射手與打牌位共用）。</p>
           </div>
           {highScore > 0 && <p style={{color:T.cyan,fontWeight:700,marginBottom:16,fontSize:14}}>最高分: {highScore}</p>}
@@ -2161,14 +2249,38 @@ function WhackTabletView({tablets}) {
                   <input className="ginput" value={playerName} onChange={e=>setPlayerName(e.target.value)} placeholder="你的名字" style={{maxWidth:160,textAlign:"center"}} maxLength={10}/>
                   <button className="gbtn gbtn-primary" onClick={()=>{ setHighScore(prev=>Math.max(prev,finalScore)); saveScore(playerName,finalScore)}} disabled={saving||!playerName.trim()||finalScore<=0}>{saving?"儲存中...":"儲存成績"}</button>
                 </div>
+                {finalScore > 0 && (
+                  <p style={{color:"#FFA500",fontSize:11,marginTop:8}}>⚠ 未儲存將遺失分數，請先輸入名字儲存</p>
+                )}
               </div>
             ) : (
               <p style={{color:T.cyan,fontWeight:700,fontSize:13,marginBottom:14}}>成績已儲存 ✓</p>
             )}
-            <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
-              <button className="gbtn gbtn-primary" onClick={() => startGame(selectedName, 1)}>重新挑戰（從第 1 關）</button>
-              <button className="gbtn" onClick={() => { setGamePhase("select"); setSelectedName(null) }}>換目標</button>
-            </div>
+            {pendingAction ? (
+              <div style={{background:"rgba(255,68,68,0.12)",border:`1px solid rgba(255,68,68,0.4)`,borderRadius:10,padding:14}}>
+                <p style={{color:T.red,fontWeight:700,fontSize:13,marginBottom:10}}>⚠ 尚未儲存累計 {finalScore} 分，捨棄重來？</p>
+                <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
+                  <button className="gbtn gbtn-danger" onClick={() => {
+                    const a = pendingAction;
+                    setPendingAction(null);
+                    if (a === "restart") startGame(selectedName, 1);
+                    else if (a === "change") { setGamePhase("select"); setSelectedName(null); }
+                  }}>捨棄並繼續</button>
+                  <button className="gbtn" onClick={() => setPendingAction(null)}>取消</button>
+                </div>
+              </div>
+            ) : (
+              <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
+                <button className="gbtn gbtn-primary" onClick={() => {
+                  if (!saved && finalScore > 0) setPendingAction("restart");
+                  else startGame(selectedName, 1);
+                }}>重新挑戰（從第 1 關）</button>
+                <button className="gbtn" onClick={() => {
+                  if (!saved && finalScore > 0) setPendingAction("change");
+                  else { setGamePhase("select"); setSelectedName(null); }
+                }}>換目標</button>
+              </div>
+            )}
           </div>
         </div>
         <ScoreBoard scores={scoreList} title="排行榜 TOP 20"/>
@@ -2208,7 +2320,7 @@ function WhackTabletView({tablets}) {
               {cell && (
                 <div
                   key={cell.key}
-                  className={`whack-tablet ${cell.type === "bomb" ? "bomb" : ""} ${cell.type !== "bomb" && cell.hp < cell.maxHp ? "wounded" : ""}`}
+                  className={`whack-tablet ${cell.type === "bomb" ? "bomb" : ""} ${cell.type === "glow" ? "glow" : ""} ${cell.type === "normal" && cell.hp < cell.maxHp ? "wounded" : ""}`}
                   onPointerDown={(e) => handleHit(idx, e)}
                 >
                   <span className="whack-tablet-name">{(cell.name || "").slice(0, 3)}</span>
@@ -2216,9 +2328,9 @@ function WhackTabletView({tablets}) {
               )}
               {cellExplosions.map(ex => (
                 <div key={ex.id} className="whack-explode">
-                  <div className={`whack-flash ${ex.type === "bomb" ? "bomb" : ""}`}/>
+                  <div className={`whack-flash ${ex.type === "bomb" ? "bomb" : ""} ${ex.type === "glow" ? "glow" : ""}`}/>
                   {[0,1,2,3,4,5].map(i => (
-                    <div key={i} className={`whack-shard whack-shard-${i} ${ex.type === "bomb" ? "bomb" : ""}`}/>
+                    <div key={i} className={`whack-shard whack-shard-${i} ${ex.type === "bomb" ? "bomb" : ""} ${ex.type === "glow" ? "glow" : ""}`}/>
                   ))}
                 </div>
               ))}
