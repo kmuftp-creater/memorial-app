@@ -1929,6 +1929,7 @@ function WhackTabletView({tablets}) {
   const [shaking, setShaking] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
   const gameRef = useRef(null);
+  const audioCtxRef = useRef(null);
 
   const GAME_TIME = 30;
 
@@ -1937,11 +1938,11 @@ function WhackTabletView({tablets}) {
      bombChance / glowChance: 額外隨機機率
      發光牌位 = 1 擊 +50；炸彈 = 1 擊 -10 */
   const LV = {
-    1: { grid:3, spawnMin:1100, spawnMax:1700, life:2000, maxActive:2, hp:1, bombChance:0,    bombGuard:0, glowChance:0,    glowGuard:0 },
-    2: { grid:3, spawnMin:750,  spawnMax:1200, life:1500, maxActive:3, hp:2, bombChance:0,    bombGuard:0, glowChance:0,    glowGuard:0 },
-    3: { grid:4, spawnMin:750,  spawnMax:1200, life:1500, maxActive:3, hp:2, bombChance:0,    bombGuard:0, glowChance:0.05, glowGuard:0 },
-    4: { grid:4, spawnMin:650,  spawnMax:1050, life:1400, maxActive:4, hp:2, bombChance:0.08, bombGuard:8, glowChance:0.05, glowGuard:11 },
-    5: { grid:5, spawnMin:650,  spawnMax:1050, life:1400, maxActive:4, hp:2, bombChance:0.12, bombGuard:6, glowChance:0.05, glowGuard:5 },
+    1: { grid:3, spawnMin:1100, spawnMax:1700, life:2000, maxActive:2, hp:1, bombChance:0,    bombGuard:0, glowChance:0,    glowGuard:0  },
+    2: { grid:3, spawnMin:700,  spawnMax:1100, life:1400, maxActive:3, hp:1, bombChance:0,    bombGuard:0, glowChance:0.05, glowGuard:11 },
+    3: { grid:4, spawnMin:700,  spawnMax:1100, life:1400, maxActive:3, hp:2, bombChance:0,    bombGuard:0, glowChance:0.05, glowGuard:0  },
+    4: { grid:4, spawnMin:550,  spawnMax:900,  life:1300, maxActive:4, hp:2, bombChance:0.08, bombGuard:8, glowChance:0.05, glowGuard:11 },
+    5: { grid:5, spawnMin:550,  spawnMax:900,  life:1300, maxActive:4, hp:2, bombChance:0.12, bombGuard:6, glowChance:0.05, glowGuard:5  },
   };
 
   const fetchScores = useCallback(async () => {
@@ -2021,18 +2022,26 @@ function WhackTabletView({tablets}) {
     setSaving(false);
   };
 
-  const playHitSound = (good) => {
+  const playHitSound = (kind) => {
     try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      const ctx = audioCtxRef.current;
+      if (ctx.state === "suspended") ctx.resume();
       const o = ctx.createOscillator(), g = ctx.createGain();
       o.connect(g); g.connect(ctx.destination);
-      o.type = good ? "sine" : "sawtooth";
-      o.frequency.setValueAtTime(good ? 660 : 140, ctx.currentTime);
-      o.frequency.exponentialRampToValueAtTime(good ? 220 : 60, ctx.currentTime + 0.15);
-      g.gain.setValueAtTime(0.3, ctx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.18);
-      o.start(); o.stop(ctx.currentTime + 0.2);
-    } catch(e){}
+      const good = kind !== "bad";
+      const big = kind === "glow";
+      o.type = good ? (big ? "triangle" : "sine") : "sawtooth";
+      const f0 = big ? 880 : (good ? 660 : 140);
+      const f1 = big ? 440 : (good ? 220 : 60);
+      o.frequency.setValueAtTime(f0, ctx.currentTime);
+      o.frequency.exponentialRampToValueAtTime(f1, ctx.currentTime + (big ? 0.25 : 0.15));
+      g.gain.setValueAtTime(big ? 0.4 : 0.3, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + (big ? 0.3 : 0.18));
+      o.start(); o.stop(ctx.currentTime + (big ? 0.32 : 0.2));
+    } catch(e){ console.warn("audio fail", e); }
   };
 
   const spawnFloat = (idx, points) => {
@@ -2073,7 +2082,7 @@ function WhackTabletView({tablets}) {
     } else if (cell.type === "glow") {
       points = 50; killed = true;
     } else {
-      if (g.level === 1) { points = 10; killed = true; }
+      if (g.level <= 2) { points = 10; killed = true; }
       else {
         if (cell.hp <= 0) { points = 20; killed = true; }
         else points = 5;
@@ -2090,7 +2099,7 @@ function WhackTabletView({tablets}) {
     }
     setActiveCells({...g.cells});
     spawnFloat(idx, points);
-    playHitSound(points > 0);
+    playHitSound(cell.type === "glow" ? "glow" : (points > 0 ? "good" : "bad"));
   };
 
   useEffect(() => {
@@ -2188,13 +2197,13 @@ function WhackTabletView({tablets}) {
           <div style={{background:"rgba(255,255,255,0.04)",borderRadius:8,padding:"10px 12px",marginBottom:16,fontSize:12,lineHeight:"1.8",color:T.textDim}}>
             <p style={{color:T.gold,fontWeight:700,marginBottom:4,fontSize:13}}>遊戲規則</p>
             <p>第 1 關：3x3 棋盤，敲中即破（+10 分）；熱身關</p>
-            <p>第 2 關：3x3 棋盤，需敲擊 2 次（首擊 +5、擊破 +20）；速度略升</p>
-            <p>第 3 關：4x4 棋盤，2 擊同第 2 關；首擊後變色裂痕，5% 機率發光牌位</p>
+            <p>第 2 關：3x3 棋盤，敲中即破（+10 分）；速度略升，5% 機率發光（每 11 個保底 1 個）</p>
+            <p>第 3 關：4x4 棋盤，需敲擊 2 次（首擊 +5、擊破 +20）；首擊後變色裂痕，5% 機率發光牌位</p>
             <p>第 4 關：4x4 棋盤，2 擊；速度再略升，每 8 個保底 1 個炸彈（外加 8% 隨機），每 11 個保底 1 個發光（外加 5% 隨機）</p>
             <p>第 5 關：5x5 棋盤，規則同第 4 關，每 6 個至少 1 個炸彈；發光每 5 個保底 1 個（外加 5% 隨機）</p>
             <p style={{color:"#FF6666"}}>💣 炸彈：敲到立即扣 10 分，請避開</p>
             <p style={{color:"#5fffe5"}}>✨ 發光牌位：青色脈衝，敲一下 +50 分</p>
-            <p style={{marginTop:6,color:T.gold}}>5 關全破預估累計總分 ~3400-3500 分</p>
+            <p style={{marginTop:6,color:T.gold}}>5 關全破預估累計總分 ~3600-3700 分</p>
             <p style={{marginTop:6,color:T.text}}>每雙數關速度略升，關內速度固定。每關結束分數會持續累計到下一關，可隨時儲存累計總分到排行榜（神射手與打牌位共用）。</p>
           </div>
           {highScore > 0 && <p style={{color:T.cyan,fontWeight:700,marginBottom:16,fontSize:14}}>最高分: {highScore}</p>}
@@ -2342,7 +2351,13 @@ function WhackTabletView({tablets}) {
                 </div>
               ))}
               {cellFloats.map(f => (
-                <div key={f.id} className="whack-float" style={{color: f.points > 0 ? "#FFFFFF" : "#FF6666"}}>
+                <div key={f.id} className="whack-float" style={{
+                  color: f.points >= 50 ? "#FFD700" : (f.points > 0 ? "#FFFFFF" : "#FF6666"),
+                  fontSize: f.points >= 50 ? "22px" : "16px",
+                  textShadow: f.points >= 50
+                    ? "0 0 6px #FFD700, 0 0 12px rgba(255,215,0,0.6), -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000"
+                    : "0 0 4px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.95)",
+                }}>
                   {f.points > 0 ? `+${f.points}` : f.points}
                 </div>
               ))}
