@@ -518,6 +518,75 @@ body{
 @keyframes bombPulse{from{box-shadow:0 0 14px rgba(255,30,30,0.55),inset 0 0 10px rgba(0,0,0,0.6)}to{box-shadow:0 0 24px rgba(255,30,30,0.95),inset 0 0 12px rgba(0,0,0,0.6)}}
 
 @keyframes whackPop{from{transform:translateY(115%)}to{transform:translateY(0)}}
+
+/* === 擊破爆炸特效 === */
+.whack-explode{position:absolute;inset:0;pointer-events:none;z-index:5}
+.whack-flash{
+  position:absolute;top:50%;left:50%;width:20px;height:20px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,255,210,1) 0%,rgba(255,210,80,0.7) 45%,rgba(255,180,40,0.3) 75%,transparent 100%);
+  transform:translate(-50%,-50%);
+  animation:whackFlash 0.45s cubic-bezier(0.2,0.8,0.4,1) forwards;
+  filter:blur(0.5px);
+}
+.whack-flash.bomb{
+  background:radial-gradient(circle,rgba(255,240,180,1) 0%,rgba(255,120,30,0.9) 40%,rgba(180,30,0,0.5) 75%,transparent 100%);
+}
+@keyframes whackFlash{
+  0%{width:8px;height:8px;opacity:1}
+  60%{opacity:0.85}
+  100%{width:110px;height:110px;opacity:0;filter:blur(4px)}
+}
+.whack-shard{
+  position:absolute;top:50%;left:50%;width:14px;height:20px;
+  background:linear-gradient(180deg,#8B5A2B 0%,#5C3A1E 60%,#3D2415 100%);
+  border:1.5px solid #FFD700;border-radius:2px;
+  transform:translate(-50%,-50%);
+  animation:whackShard 0.7s cubic-bezier(0.25,0.55,0.55,1) forwards;
+  box-shadow:0 0 6px rgba(255,215,0,0.5);
+}
+.whack-shard.bomb{
+  background:radial-gradient(circle at 50% 35%,#5a5a5a 0%,#1a1a1a 80%,#000 100%);
+  border-color:#ff5050;box-shadow:0 0 8px rgba(255,80,30,0.7);
+}
+.whack-shard-0{--dx:-28px;--dy:-24px;--rot:-130deg}
+.whack-shard-1{--dx:0px;--dy:-32px;--rot:-30deg}
+.whack-shard-2{--dx:28px;--dy:-24px;--rot:80deg}
+.whack-shard-3{--dx:30px;--dy:10px;--rot:160deg}
+.whack-shard-4{--dx:-2px;--dy:26px;--rot:220deg}
+.whack-shard-5{--dx:-30px;--dy:10px;--rot:-200deg}
+@keyframes whackShard{
+  0%{transform:translate(-50%,-50%) rotate(0deg) scale(1.1);opacity:1}
+  60%{opacity:1}
+  100%{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy) + 14px)) rotate(var(--rot)) scale(0.45);opacity:0}
+}
+/* 第一擊（受傷）小特效：濺出火花 */
+.whack-spark{
+  position:absolute;top:50%;left:50%;width:6px;height:6px;border-radius:50%;
+  background:radial-gradient(circle,#FFE082 0%,#FF8800 60%,transparent 100%);
+  transform:translate(-50%,-50%);
+  pointer-events:none;
+  animation:whackSpark 0.4s ease-out forwards;
+}
+.whack-spark-0{--dx:-18px;--dy:-14px}
+.whack-spark-1{--dx:14px;--dy:-18px}
+.whack-spark-2{--dx:20px;--dy:8px}
+.whack-spark-3{--dx:-14px;--dy:14px}
+@keyframes whackSpark{
+  0%{transform:translate(-50%,-50%) scale(1.2);opacity:1}
+  100%{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(0.3);opacity:0}
+}
+/* 炸彈震動 */
+.whack-board.whack-shake{animation:whackShake 0.32s cubic-bezier(.36,.07,.19,.97)}
+@keyframes whackShake{
+  0%,100%{transform:translate(0,0)}
+  15%{transform:translate(-5px,3px)}
+  30%{transform:translate(5px,-3px)}
+  45%{transform:translate(-4px,-4px)}
+  60%{transform:translate(4px,3px)}
+  75%{transform:translate(-3px,2px)}
+  90%{transform:translate(2px,-2px)}
+}
+
 .whack-float{
   position:absolute;top:0;left:50%;transform:translateX(-50%);
   font-weight:900;font-size:16px;pointer-events:none;
@@ -1786,6 +1855,9 @@ function WhackTabletView({tablets}) {
   const [levelGain, setLevelGain] = useState(0);
   const [activeCells, setActiveCells] = useState({});
   const [floats, setFloats] = useState([]);
+  const [explosions, setExplosions] = useState([]);
+  const [sparks, setSparks] = useState([]);
+  const [shaking, setShaking] = useState(false);
   const gameRef = useRef(null);
 
   const GAME_TIME = 30;
@@ -1826,6 +1898,9 @@ function WhackTabletView({tablets}) {
     if (useLv === 1) { setTotalScore(0); setPlayerName(""); }
     setActiveCells({});
     setFloats([]);
+    setExplosions([]);
+    setSparks([]);
+    setShaking(false);
 
     gameRef.current = {
       running: true,
@@ -1892,6 +1967,22 @@ function WhackTabletView({tablets}) {
     setTimeout(() => setFloats(prev => prev.filter(f => f.id !== id)), 600);
   };
 
+  const spawnExplosion = (idx, type) => {
+    const id = Math.random().toString(36).slice(2);
+    setExplosions(prev => [...prev, {id, idx, type}]);
+    setTimeout(() => setExplosions(prev => prev.filter(e => e.id !== id)), 750);
+    if (type === "bomb") {
+      setShaking(true);
+      setTimeout(() => setShaking(false), 320);
+    }
+  };
+
+  const spawnSpark = (idx) => {
+    const id = Math.random().toString(36).slice(2);
+    setSparks(prev => [...prev, {id, idx}]);
+    setTimeout(() => setSparks(prev => prev.filter(s => s.id !== id)), 420);
+  };
+
   const handleHit = (idx, e) => {
     if (e) e.stopPropagation();
     const g = gameRef.current;
@@ -1915,7 +2006,12 @@ function WhackTabletView({tablets}) {
 
     g.score = Math.max(0, g.score + points);
     setDisplayScore(g.score);
-    if (killed) delete g.cells[idx];
+    if (killed) {
+      delete g.cells[idx];
+      spawnExplosion(idx, cell.type === "bomb" ? "bomb" : "normal");
+    } else {
+      spawnSpark(idx);
+    }
     setActiveCells({...g.cells});
     spawnFloat(idx, points);
     playHitSound(points > 0);
@@ -2100,10 +2196,12 @@ function WhackTabletView({tablets}) {
           setGamePhase("gameover");
         }}>結束</button>
       </div>
-      <div className={`whack-board grid-${LV[level].grid}`}>
+      <div className={`whack-board grid-${LV[level].grid} ${shaking ? "whack-shake" : ""}`}>
         {Array.from({length: LV[level].grid * LV[level].grid}).map((_, idx) => {
           const cell = activeCells[idx];
           const cellFloats = floats.filter(f => f.idx === idx);
+          const cellExplosions = explosions.filter(ex => ex.idx === idx);
+          const cellSparks = sparks.filter(sp => sp.idx === idx);
           return (
             <div className="whack-cell" key={idx}>
               <div className="whack-hole"/>
@@ -2116,6 +2214,21 @@ function WhackTabletView({tablets}) {
                   <span className="whack-tablet-name">{(cell.name || "").slice(0, 3)}</span>
                 </div>
               )}
+              {cellExplosions.map(ex => (
+                <div key={ex.id} className="whack-explode">
+                  <div className={`whack-flash ${ex.type === "bomb" ? "bomb" : ""}`}/>
+                  {[0,1,2,3,4,5].map(i => (
+                    <div key={i} className={`whack-shard whack-shard-${i} ${ex.type === "bomb" ? "bomb" : ""}`}/>
+                  ))}
+                </div>
+              ))}
+              {cellSparks.map(sp => (
+                <div key={sp.id} className="whack-explode">
+                  {[0,1,2,3].map(i => (
+                    <div key={i} className={`whack-spark whack-spark-${i}`}/>
+                  ))}
+                </div>
+              ))}
               {cellFloats.map(f => (
                 <div key={f.id} className="whack-float" style={{color: f.points > 0 ? "#FFFFFF" : "#FF6666"}}>
                   {f.points > 0 ? `+${f.points}` : f.points}
