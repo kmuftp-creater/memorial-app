@@ -12,6 +12,9 @@
   "host": "",
   "path": "",
   "apps": ["Antigravity", "Claude"],
+  "links": [
+    { "label": "線上版", "url": "https://kmuftp-creater.github.io/memorial-app" }
+  ],
   "tags": ["互動頁", "HTML"],
   "updatedAt": "2026-06-19",
   "completedAt": null
